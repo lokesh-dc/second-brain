@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mindrop Web — Next.js rebuild of `second-mind`
 
-## Getting Started
+Web port of the React Native (Expo) app, built per `NEXTJS_MIGRATION.md` in the
+original repo. Next.js 16 (App Router) · Tailwind v4 · Framer Motion · Supabase
+(`@supabase/ssr`) · Groq + Gemini server-side.
 
-First, run the development server:
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Env (`.env.local`, keys migrated from the RN app):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+GROQ_API_KEY=...      # server-only now (was client-exposed in RN)
+GEMINI_API_KEY=...    # server-only now
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Database
 
-## Learn More
+Run `supabase/migrations/0001_full_schema.sql` in your Supabase SQL editor.
+It consolidates the original schema **plus the pieces that were missing from the
+RN repo**: `entries.tags` / `entries.embedding_doc` columns, the `digests`
+table, and the `match_documents_filtered` RPC. If your DB already has the base
+tables, only run the sections marked `[NEW]`.
 
-To learn more about Next.js, take a look at the following resources:
+## Map to the RN app
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| RN | Web |
+|---|---|
+| `app/(tabs)/index` | `app/(app)/home` |
+| `app/(tabs)/search` | `app/(app)/search` |
+| `app/(tabs)/insights` | `app/(app)/insights` |
+| `CustomTabBar` | `components/tab-dock.tsx` (Framer Motion) |
+| EntryPopup / CategoryPopup sheets | Vaul drawers (`entry-sheet`, `category-picker`) |
+| DeviceEventEmitter | route-based state + server actions + router.refresh() |
+| lib/classifier, queryParser, hybridSearch, ai, useDigest | `lib/ai/*` (server-only) — prompts kept byte-identical |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Auth gate lives in `proxy.ts` (Next 16 renamed middleware→proxy): onboarding →
+login → setup → app, mirroring the RN `_layout.tsx` state machine. Onboarding
+completion is stored in an `onboarding_complete` cookie; session via Supabase
+cookies.
 
-## Deploy on Vercel
+## Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- All AI calls (Groq/Gemini) run on the server via server actions
+  (`actions/`) — no API keys ship to the browser.
+- Optimistic "Categorising your thought..." placeholder from the RN capture is
+  replaced by a toast + `router.refresh()` for simplicity.
+- Categories tab remains a placeholder, as in the RN app.
+# second-brain
