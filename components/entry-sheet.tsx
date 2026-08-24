@@ -22,12 +22,12 @@ export default function EntrySheet({ entry, open, onClose }: EntrySheetProps) {
   return (
     <Drawer.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-40 bg-black/40" />
+        <Drawer.Overlay className="fixed inset-0 z-40 bg-ink/30" />
         <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white px-6 pb-10 pt-1 outline-none">
           <Drawer.Title className="sr-only">Entry details</Drawer.Title>
 
           {/* Handle bar */}
-          <div className="mx-auto mb-5 mt-3 h-1 w-10 rounded-full bg-[#e2e8f0]" />
+          <div className="mx-auto mb-5 mt-3 h-1 w-10 rounded-full bg-line" />
 
           {/* Header */}
           <div className="mb-6 flex items-center justify-between">
@@ -42,27 +42,30 @@ export default function EntrySheet({ entry, open, onClose }: EntrySheetProps) {
                 {categoryName}
               </span>
             </div>
-            <button onClick={onClose} className="p-1">
-              <X size={24} className="text-[#94a3b8]" />
+            <button
+              onClick={onClose}
+              className="rounded-full p-1.5 text-ink-3 transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-brand"
+            >
+              <X size={22} />
             </button>
           </div>
 
           {/* Raw text */}
-          <p className="mb-6 text-xl font-medium leading-relaxed text-[#0f172a]">
+          <p className="mb-6 text-xl font-medium leading-relaxed text-pretty text-ink">
             {entry.raw_text}
           </p>
 
           {/* Entities */}
           {entry.entities && entry.entities.length > 0 && (
             <section className="mb-6">
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-[#94a3b8]">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-3">
                 Entities
               </h3>
               <div className="flex flex-wrap gap-2">
                 {entry.entities.map((e) => (
                   <span
                     key={e.id}
-                    className="rounded-lg bg-[#f1f5f9] px-3 py-1.5 text-sm font-semibold text-[#475569]"
+                    className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-semibold text-ink-2"
                   >
                     {e.name}
                   </span>
@@ -74,10 +77,10 @@ export default function EntrySheet({ entry, open, onClose }: EntrySheetProps) {
           {/* Transaction */}
           {entry.amount && (
             <section className="mb-6">
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-[#94a3b8]">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-3">
                 Transaction
               </h3>
-              <p className="text-2xl font-bold text-green-500">
+              <p className="text-2xl font-bold tabular-nums text-success">
                 {entry.currency === "INR" ? "₹" : entry.currency || ""}
                 {entry.amount}
               </p>
@@ -86,10 +89,10 @@ export default function EntrySheet({ entry, open, onClose }: EntrySheetProps) {
 
           {/* Logged at */}
           <section>
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-[#94a3b8]">
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-3">
               Logged At
             </h3>
-            <p className="font-medium text-[#64748b]">
+            <p className="font-medium tabular-nums text-ink-2">
               {format(new Date(entry.timestamp), "EEEE, d MMMM yyyy 'at' h:mm a")}
             </p>
           </section>

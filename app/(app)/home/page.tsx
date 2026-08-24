@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { loadEntries } from "@/lib/entries";
 import EntriesFeed from "@/components/entries-feed";
@@ -23,6 +24,13 @@ export default async function HomePage() {
   }
 
   const entries = await loadEntries();
+  const dateLabel = format(new Date(), "EEEE, d MMMM");
 
-  return <EntriesFeed firstName={firstName} initialEntries={entries} />;
+  return (
+    <EntriesFeed
+      firstName={firstName}
+      dateLabel={dateLabel}
+      initialEntries={entries}
+    />
+  );
 }

@@ -1,7 +1,7 @@
 import "server-only";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1/chat/completions";
-export const GROQ_MODEL = "llama-3.1-8b-instant";
+export const GROQ_MODEL = "openai/gpt-oss-20b";
 
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { Entry } from "@/types";
 import { getCategoryConfig } from "@/constants/categories";
 
@@ -14,65 +14,60 @@ export default function EntryCard({ entry, onPress }: EntryCardProps) {
   const config = getCategoryConfig(categoryName);
   const Icon = config.icon;
 
+  const dateObj = new Date(entry.timestamp);
   const isExpense = categoryName.toLowerCase().includes("expense");
 
-  const dateObj = new Date(entry.timestamp);
-  const monthStr = format(dateObj, "MMM");
-  const dayStr = format(dateObj, "dd");
+  const amount =
+    isExpense && entry.amount != null
+      ? `${entry.currency === "INR" ? "₹" : entry.currency || ""}${new Intl.NumberFormat(
+          "en-IN",
+          { maximumFractionDigits: 2 },
+        ).format(entry.amount)}`
+      : null;
+
+  const entities = entry.entities?.slice(0, 2) ?? [];
 
   return (
-    <div className="mb-3 flex flex-row gap-2">
-      {/* Date column */}
-      <div className="flex w-12 shrink-0 flex-col items-center pt-3">
-        <span className="text-xs font-bold uppercase text-[#94a3b8]">
-          {monthStr}
+    <button
+      onClick={onPress}
+      className="block w-full rounded-2xl border border-line bg-white p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-3/40 hover:shadow-[0_12px_28px_-16px_rgba(26,26,26,0.25)] active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-lg"
+          style={{ backgroundColor: `${config.accent}1A` }}
+        >
+          <Icon size={15} color={config.accent} strokeWidth={2} />
         </span>
-        <span className="mt-0.5 text-[22px] font-extrabold text-[#1e293b]">
-          {dayStr}
+        <span className="truncate text-xs font-semibold tracking-wide text-ink-2">
+          {categoryName}
+        </span>
+        <span className="ml-auto shrink-0 text-[11px] font-medium tabular-nums text-ink-3">
+          {format(dateObj, "h:mm a")}
         </span>
       </div>
 
-      {/* Card */}
-      <button
-        onClick={onPress}
-        className="flex-1 rounded-2xl border-l-4 bg-white p-4 text-left shadow-sm transition-transform active:scale-[0.99]"
-        style={{ borderLeftColor: config.accent }}
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center">
-            <Icon size={16} color={config.accent} />
+      <p className="mt-2.5 line-clamp-2 text-[15px] font-medium leading-snug text-pretty text-ink">
+        {entry.summary || entry.raw_text}
+      </p>
+
+      {(amount || entities.length > 0) && (
+        <div className="mt-2.5 flex items-center gap-2">
+          {amount && (
+            <span className="text-[13px] font-bold tabular-nums text-success">
+              {amount}
+            </span>
+          )}
+          {entities.map((e) => (
             <span
-              className="ml-1.5 text-xs font-bold uppercase tracking-wider"
-              style={{ color: config.accent }}
+              key={e.id}
+              className="rounded-md border border-line bg-paper px-1.5 py-0.5 text-[11px] font-medium text-ink-2"
             >
-              {categoryName}
+              {e.name}
             </span>
-          </div>
-
-          {entry.entities && entry.entities.length > 0 && (
-            <span className="rounded-md bg-[#f1f5f9] px-2 py-0.5 text-[10px] font-semibold text-[#64748b]">
-              {entry.entities[0].name}
-            </span>
-          )}
+          ))}
         </div>
-
-        <p className="mb-3 line-clamp-2 text-base font-medium leading-snug text-[#1e293b]">
-          {entry.summary || entry.raw_text}
-        </p>
-
-        <div className="flex items-center">
-          {isExpense && entry.amount && (
-            <span className="rounded-xl bg-[#dcfce7] px-2 py-0.5 text-xs font-bold text-[#166534]">
-              {entry.currency === "INR" ? "₹" : entry.currency || ""}
-              {entry.amount}
-            </span>
-          )}
-          <span className="flex-1" />
-          <span className="text-[11px] text-[#94a3b8]">
-            {formatDistanceToNow(dateObj, { addSuffix: true })}
-          </span>
-        </div>
-      </button>
-    </div>
+      )}
+    </button>
   );
 }
