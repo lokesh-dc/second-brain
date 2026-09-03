@@ -26,6 +26,8 @@ async function callGroq(
   messages: ChatMessage[],
   opts: ChatOptions,
 ): Promise<string> {
+  const isReasoning = GROQ_MODEL.startsWith("openai/gpt-oss");
+
   const response = await fetch(GROQ_BASE_URL, {
     method: "POST",
     headers: {
@@ -35,14 +37,19 @@ async function callGroq(
     body: JSON.stringify({
       model: GROQ_MODEL,
       messages,
-      temperature: opts.temperature ?? 0,
-      max_tokens: opts.maxTokens ?? 300,
+      temperature: opts.temperature ?? (isReasoning ? 0.6 : 0),
+      // GPT-OSS reasoning models reject `max_tokens`; they require
+      // `max_completion_tokens` instead.
+      ...(isReasoning
+        ? { max_completion_tokens: opts.maxTokens ?? 1024 }
+        : { max_tokens: opts.maxTokens ?? 300 }),
       ...(opts.jsonMode ? { response_format: { type: "json_object" } } : {}),
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Groq API error: ${response.status}`);
+    const body = await response.text();
+    throw new Error(`Groq API error: ${response.status} ${body}`);
   }
 
   const data = await response.json();

@@ -2,7 +2,7 @@ export type Category = {
   id: string;
   user_id: string;
   name: string;
-  icon: string;
+  icon?: string;
   is_default: boolean;
 };
 
@@ -34,6 +34,37 @@ export type Entry = {
 export type EntryEntity = {
   entry_id: string;
   entity_id: string;
+};
+
+/**
+ * One row of the `match_documents_filtered` RPC result.
+ * Mirrors supabase/migrations/0002_match_documents_filtered.sql — keep in sync.
+ * Reconstruct Entry via category_id/category_name and the entities jsonb array.
+ */
+export type MatchDocumentsRow = {
+  id: string;
+  user_id: string;
+  raw_text: string;
+  category_id: string | null;
+  category_name: string | null;
+  category_user_id: string | null;
+  category_icon: string | null;
+  category_is_default: boolean | null;
+  summary: string | null;
+  amount: number | null;
+  currency: string | null;
+  timestamp: string;
+  tags: string[] | null;
+  embedding_doc: string | null;
+  entities:
+    | Array<{
+        id: string;
+        user_id: string;
+        name: string;
+        type: string | null;
+      }>
+    | null;
+  similarity: number;
 };
 
 export type EntityInput = {

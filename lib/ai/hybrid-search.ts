@@ -1,9 +1,58 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateEmbedding } from "./embeddings";
-import { Entity, Entry, ParsedQuery } from "@/types";
+import { Category, Entity, Entry, MatchDocumentsRow, ParsedQuery } from "@/types";
 
 const RRF_K = 60;
+
+/**
+ * PostgREST can return the categories(id, ...) join as an object, an array
+ * (relationship resolved as many), or null depending on the row and hinting.
+ */
+function normalizeCategory(value: unknown): Category | undefined {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  if (!candidate || typeof candidate !== "object") return undefined;
+  const c = candidate as Partial<Category> & Record<string, unknown>;
+  if (typeof c.id !== "string" || typeof c.name !== "string") return undefined;
+  return {
+    id: c.id,
+    name: c.name,
+    user_id: typeof c.user_id === "string" ? c.user_id : "",
+    icon: typeof c.icon === "string" ? c.icon : undefined,
+    is_default: c.is_default === true,
+  };
+}
+
+function toEntry(row: MatchDocumentsRow): Entry {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    raw_text: row.raw_text,
+    category_id: row.category_id ?? undefined,
+    summary: row.summary ?? undefined,
+    amount: row.amount ?? undefined,
+    currency: row.currency ?? undefined,
+    timestamp: row.timestamp,
+    tags: row.tags ?? [],
+    embedding_doc: row.embedding_doc ?? undefined,
+    category:
+      row.category_id && row.category_name && row.category_user_id
+        ? {
+            id: row.category_id,
+            user_id: row.category_user_id,
+            name: row.category_name,
+            icon: row.category_icon ?? undefined,
+            is_default: row.category_is_default === true,
+          }
+        : undefined,
+    entities: (row.entities ?? []).map((et) => ({
+      id: et.id,
+      user_id: et.user_id,
+      name: et.name,
+      type: et.type ?? "",
+    })),
+  };
+}
 
 function reciprocalRankFusion(
   vectorResults: Entry[],
@@ -65,9 +114,9 @@ export async function hybridSearch(
       let query = sb
         .from("entries")
         .select(
-          `id, raw_text, summary, amount, currency, timestamp, tags,
-           category:categories(id, name),
-           entry_entities(entity:entities(id, name, type))`,
+          `id, user_id, raw_text, summary, amount, currency, timestamp, tags,
+           category:categories(id, user_id, name, icon, is_default),
+           entry_entities(entity:entities(id, user_id, name, type))`,
         )
         .eq("user_id", userId)
         .order("timestamp", { ascending: false })
@@ -94,19 +143,23 @@ export async function hybridSearch(
   if (vectorRes.error) {
     console.error("[hybridSearch] vector search error:", vectorRes.error);
   }
+  if (structuredRes.error) {
+    console.error(
+      "[hybridSearch] structured search error:",
+      structuredRes.error,
+    );
+  }
 
-  const vectorEntries = (vectorRes.data ?? []) as unknown as Entry[];
-  const rawStructured = (structuredRes.data ?? []) as unknown as Array<
-    Entry & { entry_entities?: Array<{ entity?: Entity }> }
-  >;
+  const vectorEntries: Entry[] = ((vectorRes.data ?? []) as MatchDocumentsRow[]).map(toEntry);
 
   // Normalize the nested join into a flat entities array
-  const structuredEntries: Entry[] = rawStructured.map((row) => ({
+  const structuredEntries: Entry[] = (
+    (structuredRes.data ?? []) as unknown as Array<
+      Entry & { entry_entities?: Array<{ entity?: Entity }> }
+    >
+  ).map((row) => ({
     ...row,
-    category:
-      typeof row.category === "string"
-        ? undefined
-        : (row.category as Entry["category"]),
+    category: normalizeCategory(row.category),
     entities: row.entry_entities
       ?.map((ee) => ee.entity)
       .filter((e): e is NonNullable<typeof e> => Boolean(e)),

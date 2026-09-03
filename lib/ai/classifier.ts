@@ -61,14 +61,14 @@ Output: {
 }
 
 Input: "${text.replace(/"/g, "'")}"
-Output:`;
+Output: Return a top-level object with an "items" key per the schema above.`;
 
   return chatJSON<ClassifierResult>(
     [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    { temperature: 0.1, maxTokens: 600 },
+    { temperature: 0.5, maxTokens: 2000 },
   );
 }
 
@@ -112,22 +112,32 @@ async function getCategoryId(
   name: string,
   userId: string,
 ): Promise<string | null> {
-  const { data } = await sb
+  // 1. Exact (case-insensitive) match — seeded slug names like "expense".
+  const { data: exact } = await sb
     .from("categories")
     .select("id")
     .eq("user_id", userId)
     .ilike("name", name)
-    .single();
+    .maybeSingle();
+  if (exact) return exact.id;
 
-  if (data) return data.id;
+  // 2. Substring match — display names like "Expenses"/"Ideas" vs slugs.
+  const { data: fuzzy } = await sb
+    .from("categories")
+    .select("id")
+    .eq("user_id", userId)
+    .ilike("name", `%${name}%`)
+    .limit(1)
+    .maybeSingle();
+  if (fuzzy) return fuzzy.id;
 
   const { data: defaultCat } = await sb
     .from("categories")
     .select("id")
-    .ilike("name", name)
+    .ilike("name", `%${name}%`)
     .eq("is_default", true)
     .limit(1)
-    .single();
+    .maybeSingle();
 
   return defaultCat?.id || null;
 }
@@ -201,22 +211,30 @@ export async function classifyAndSave(
     result = await callClassifier(rawText);
   } catch (err) {
     console.error("[classifier] classification failed, using fallback:", err);
-    result = {
-      items: [
-        {
-          category: "misc",
-          entities: [],
-          amount: null,
-          currency: null,
-          summary: rawText,
-          tags: ["misc"],
-          embedding_doc: `[misc] | general | ${new Date()
-            .toISOString()
-            .split("T")[0]}\nSummary: ${rawText}`,
-        },
-      ],
-    };
+    result = { items: [fallbackItem(rawText)] };
   }
 
-  await Promise.all(result.items.map((item) => saveSingleItem(sb, item, rawText, userId)));
+  const items = (result.items ?? []).filter(
+    (item) => item && typeof item.category === "string",
+  );
+
+  if (items.length === 0) {
+    await saveSingleItem(sb, fallbackItem(rawText), rawText, userId);
+    return;
+  }
+
+  await Promise.all(items.map((item) => saveSingleItem(sb, item, rawText, userId)));
+}
+
+function fallbackItem(rawText: string): ClassifierItem {
+  const today = new Date().toISOString().split("T")[0];
+  return {
+    category: "misc",
+    entities: [],
+    amount: null,
+    currency: null,
+    summary: rawText,
+    tags: ["misc"],
+    embedding_doc: `[misc] | general | ${today}\nSummary: ${rawText}`,
+  };
 }
