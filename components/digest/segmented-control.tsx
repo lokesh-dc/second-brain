@@ -15,7 +15,7 @@ const PERIODS: { label: string; value: DigestPeriod }[] = [
 
 export function DigestSegmentedControl({ selected, onSelect }: Props) {
   return (
-    <div className="mx-5 mb-5 flex rounded-xl bg-[#eeebe6] p-1">
+    <div className="mx-5 mb-5 flex rounded-xl bg-[#eeebe6] p-1 md:mx-8">
       {PERIODS.map((p) => (
         <button
           key={p.value}

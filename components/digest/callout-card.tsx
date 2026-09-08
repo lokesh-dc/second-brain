@@ -18,7 +18,7 @@ export function DigestCalloutCard({
   color,
 }: Props) {
   return (
-    <div className="mr-3 w-[200px] shrink-0 rounded-2xl bg-white p-4 shadow-sm shadow-black/5">
+    <div className="mr-3 w-[200px] shrink-0 rounded-2xl bg-white p-4 shadow-sm shadow-black/5 md:mr-0 md:w-full">
       <span
         className="mb-3 grid h-9 w-9 place-items-center rounded-full"
         style={{ backgroundColor: `${color}15` }}

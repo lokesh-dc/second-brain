@@ -46,7 +46,7 @@ export function DigestCategoryRow({
   const accentColor = CATEGORY_COLORS[normalizedCat] || CATEGORY_COLORS.misc;
 
   return (
-    <div className="mx-5 mb-3 flex overflow-hidden rounded-xl bg-white shadow-sm shadow-black/5">
+    <div className="mx-5 mb-3 flex overflow-hidden rounded-xl bg-white shadow-sm shadow-black/5 md:mx-8">
       <div className="w-1 shrink-0" style={{ backgroundColor: accentColor }} />
       <div className="flex flex-1 items-center justify-between py-3 pl-4 pr-4">
         <div className="flex items-center">

@@ -49,12 +49,12 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
     : [];
 
   return (
-    <main className="mx-auto min-h-dvh max-w-lg pb-32">
+    <main className="mx-auto min-h-dvh max-w-lg pb-32 md:max-w-4xl md:pb-16">
       {/* Header */}
-      <header className="flex items-center px-5 py-4">
+      <header className="flex items-center px-5 py-4 md:px-8">
         <button
           onClick={() => router.back()}
-          className="mr-2 p-1"
+          className="mr-2 p-1 md:hidden"
           aria-label="Go back"
         >
           <ChevronLeft size={28} className="text-ink" />
@@ -63,7 +63,7 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
       </header>
 
       {/* Results */}
-      <div ref={listRef} className="px-5">
+      <div ref={listRef} className="px-5 md:px-8 md:columns-2 md:gap-3 [&>*]:mb-3">
         {displayEntries.length === 0 ? (
           <div className="flex flex-col items-center pt-32 text-center">
             {isLoading ? (
@@ -102,7 +102,10 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
 
       {/* AI answer overlay */}
       {aiResponse && (
-        <div className="fixed inset-x-4 z-40 mx-auto max-w-lg" style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 84px)" }}>
+        <div
+          className="fixed inset-x-4 z-40 mx-auto max-w-lg md:left-auto md:right-8 md:top-6 md:mx-0 md:max-w-md"
+          style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 84px)" }}
+        >
           <RetrievalResult
             answer={aiResponse.answer}
             entryCount={aiResponse.entry_ids.length}
@@ -114,7 +117,7 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
 
       {/* Input */}
       <div
-        className="fixed inset-x-4 z-50 mx-auto max-w-lg"
+        className="fixed inset-x-4 z-50 mx-auto max-w-lg md:inset-x-auto md:left-[var(--sidebar-w)] md:right-0 md:mx-auto md:max-w-4xl md:px-8"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
       >
         <InputBar onSubmit={handleSearch} isLoading={isLoading} forceSearchMode />

@@ -79,7 +79,7 @@ export default function SetupPage() {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: STAGGER * 2.5 }}
-      className="px-6 pb-8 pt-4"
+      className="px-6 pb-8 pt-4 md:mx-auto md:w-full md:max-w-xl md:px-0"
     >
       <button
         onClick={onClick}
@@ -106,7 +106,9 @@ export default function SetupPage() {
         transition={{ duration: 0.35, ease: [0.215, 0.61, 0.355, 1] }}
         className="flex min-h-dvh flex-col justify-between"
       >
-        <div className="flex-1 px-6 pt-10">{children}</div>
+        <div className="flex-1 px-6 pt-10 md:mx-auto md:w-full md:max-w-xl md:px-0">
+          {children}
+        </div>
       </motion.div>
     </AnimatePresence>
   );

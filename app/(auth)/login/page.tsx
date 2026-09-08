@@ -56,13 +56,13 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-dvh flex-col justify-center bg-[#0f172a] p-6">
-      <div>
+      <div className="mx-auto w-full max-w-md">
         {/* Logo */}
         <div className="mb-12 flex flex-col items-center">
-          <div className="mb-4 grid h-[100px] w-[100px] place-items-center rounded-full bg-indigo-500/10">
-            <Brain size={48} className="text-indigo-500" />
+          <div className="mb-4 grid h-[100px] w-[100px] place-items-center rounded-full bg-indigo-500/10 md:h-[120px] md:w-[120px]">
+            <Brain size={48} className="text-indigo-500 md:size-[56px]" />
           </div>
-          <h1 className="text-5xl font-extrabold tracking-tight text-slate-50">
+          <h1 className="text-5xl font-extrabold tracking-tight text-slate-50 md:text-6xl">
             mind
           </h1>
           <p className="mt-2 text-base text-[#94a3b8]">
