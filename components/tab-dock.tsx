@@ -74,7 +74,7 @@ export default function TabDock() {
 
   return (
     <div
-      className="fixed inset-x-4 z-50"
+      className="fixed inset-x-4 z-50 md:hidden"
       style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
     >
       {/* Entity chip */}

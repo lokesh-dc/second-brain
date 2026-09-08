@@ -33,8 +33,8 @@ export default function InsightsScreen() {
     digest && Object.keys(digest.raw_data.entryCountByCategory).length > 0;
 
   return (
-    <main className="mx-auto max-w-lg pb-32">
-      <header className="px-5 pb-4 pt-6">
+    <main className="mx-auto max-w-lg pb-32 md:max-w-4xl md:pb-20 md:pt-6">
+      <header className="px-5 pb-4 pt-6 md:px-8">
         <h1 className="font-display text-[32px]">Insights</h1>
       </header>
 
@@ -57,59 +57,63 @@ export default function InsightsScreen() {
         <DigestEmptyState />
       ) : (
         <>
-          {digest && (
-            <DigestNarrativeCard
-              narrative={digest.narrative}
-              updatedAt={digest.generated_at}
-            />
-          )}
-
-          {/* Activity Breakdown */}
-          <section className="mb-6 mt-3">
-            <h2 className="mb-4 px-5 text-sm font-bold uppercase tracking-widest text-ink-3">
-              Activity Breakdown
-            </h2>
-            {Object.entries(digest!.raw_data.entryCountByCategory).map(
-              ([cat, count]) => (
-                <DigestCategoryRow
-                  key={cat}
-                  category={cat}
-                  count={count}
-                  amount={digest!.raw_data.totalAmountByCategory[cat]}
-                  currency={digest!.raw_data.biggestExpense?.currency}
+          <div className="grid gap-6 md:grid-cols-2 md:items-start">
+            <div className="min-w-0">
+              {digest && (
+                <DigestNarrativeCard
+                  narrative={digest.narrative}
+                  updatedAt={digest.generated_at}
                 />
-              ),
-            )}
-          </section>
+              )}
 
-          {/* Key Highlights */}
-          <section>
-            <h2 className="mb-4 px-5 text-sm font-bold uppercase tracking-widest text-ink-3">
-              Key Highlights
-            </h2>
-            <div className="overflow-x-auto px-5 pb-2">
-              <div className="flex w-max">
-                {digest!.raw_data.biggestExpense && (
-                  <DigestCalloutCard
-                    title="Biggest Expense"
-                    value={`${digest!.raw_data.biggestExpense.currency} ${digest!.raw_data.biggestExpense.amount}`}
-                    subtitle={digest!.raw_data.biggestExpense.summary}
-                    icon={Banknote}
-                    color="#1D9E75"
-                  />
+              {/* Activity Breakdown */}
+              <section className="mb-6 mt-3">
+                <h2 className="mb-4 px-5 text-sm font-bold uppercase tracking-widest text-ink-3 md:px-8">
+                  Activity Breakdown
+                </h2>
+                {Object.entries(digest!.raw_data.entryCountByCategory).map(
+                  ([cat, count]) => (
+                    <DigestCategoryRow
+                      key={cat}
+                      category={cat}
+                      count={count}
+                      amount={digest!.raw_data.totalAmountByCategory[cat]}
+                      currency={digest!.raw_data.biggestExpense?.currency}
+                    />
+                  ),
                 )}
-                {digest!.raw_data.topEntity && (
-                  <DigestCalloutCard
-                    title="Most Logged"
-                    value={digest!.raw_data.topEntity.name}
-                    subtitle={`${digest!.raw_data.topEntity.count} entries`}
-                    icon={Users}
-                    color="#7F77DD"
-                  />
-                )}
-              </div>
+              </section>
             </div>
-          </section>
+
+            {/* Key Highlights */}
+            <section>
+              <h2 className="mb-4 px-5 text-sm font-bold uppercase tracking-widest text-ink-3 md:px-8">
+                Key Highlights
+              </h2>
+              <div className="overflow-x-auto px-5 pb-2 md:px-8 md:overflow-visible">
+                <div className="flex w-max md:w-full md:flex-col md:gap-3 md:w-auto">
+                  {digest!.raw_data.biggestExpense && (
+                    <DigestCalloutCard
+                      title="Biggest Expense"
+                      value={`${digest!.raw_data.biggestExpense.currency} ${digest!.raw_data.biggestExpense.amount}`}
+                      subtitle={digest!.raw_data.biggestExpense.summary}
+                      icon={Banknote}
+                      color="#1D9E75"
+                    />
+                  )}
+                  {digest!.raw_data.topEntity && (
+                    <DigestCalloutCard
+                      title="Most Logged"
+                      value={digest!.raw_data.topEntity.name}
+                      subtitle={`${digest!.raw_data.topEntity.count} entries`}
+                      icon={Users}
+                      color="#7F77DD"
+                    />
+                  )}
+                </div>
+              </div>
+            </section>
+          </div>
         </>
       )}
     </main>

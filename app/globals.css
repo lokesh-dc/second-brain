@@ -12,6 +12,8 @@
   --color-hairline: #f1f5f9;
   --color-line: #e2e8f0;
 
+  --sidebar-w: 240px;
+
   --font-display: var(--font-dm-serif), Georgia, serif;
   --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
 }

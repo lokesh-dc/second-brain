@@ -86,7 +86,7 @@ export default function EntriesFeed({
   });
 
   return (
-    <main className="mx-auto max-w-lg px-5 pb-48 pt-8">
+    <main className="mx-auto max-w-lg px-5 pb-48 pt-8 md:max-w-4xl md:px-8 md:pb-16">
       {/* Masthead */}
       <header>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-3">
@@ -139,13 +139,13 @@ export default function EntriesFeed({
         groups.map((group) => (
           <section key={group.key} className="pt-5">
             {/* Sticky day header */}
-            <div className="sticky top-0 z-10 -mx-5 bg-paper/85 px-5 py-2.5 backdrop-blur-sm">
+            <div className="sticky top-0 z-10 -mx-5 bg-paper/85 px-5 py-2.5 backdrop-blur-sm md:-mx-8 md:px-8">
               <h2 className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink-3">
                 {group.label}
               </h2>
             </div>
 
-            <div className="mt-2 flex flex-col gap-2.5">
+            <div className="mt-2 flex flex-col gap-2.5 md:grid md:grid-cols-2 md:gap-3">
               {group.entries.map((entry, i) => (
                 <motion.div key={entry.id} {...entryMotionProps(group.startIndex + i)}>
                   <EntryCard entry={entry} onPress={() => openEntry(entry)} />

@@ -1,3 +1,4 @@
+import DesktopSidebar from "@/components/desktop-sidebar";
 import TabDock from "@/components/tab-dock";
 
 export default function AppLayout({
@@ -5,7 +6,8 @@ export default function AppLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className="min-h-dvh bg-paper">
-      {children}
+      <DesktopSidebar />
+      <div className="md:ml-[var(--sidebar-w)]">{children}</div>
       <TabDock />
     </div>
   );

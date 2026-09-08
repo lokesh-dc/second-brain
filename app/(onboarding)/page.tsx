@@ -48,11 +48,12 @@ export default function OnboardingPage() {
     <main className="relative flex min-h-dvh flex-col overflow-hidden bg-paper">
       <AnimatedCircle accent={slide.accent} />
 
-      <header className="px-6 pt-8">
+      <header className="px-6 pt-8 md:px-12">
         <span className="font-display text-xl italic">Mindrop</span>
       </header>
 
-      <section className="flex flex-1 items-center px-6">
+      <section className="flex flex-1 items-center px-6 md:px-12">
+        <div className="w-full max-w-xl">
         <AnimatePresence mode="wait">
           <motion.div
             key={slide.id}
@@ -68,7 +69,7 @@ export default function OnboardingPage() {
               {slide.eyebrow}
             </p>
 
-            <h1 className="mb-5 font-display text-5xl leading-[1.08]">
+            <h1 className="mb-5 font-display text-5xl leading-[1.08] md:text-6xl">
               {slide.headline.split("\n").map((line, lineIdx) => (
                 <span key={lineIdx} className="block">
                   {line.split(" ").map((word) => {
@@ -97,16 +98,17 @@ export default function OnboardingPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="max-w-[300px] text-[15px] leading-6 text-[#555555]"
+              className="max-w-[300px] text-[15px] leading-6 text-[#555555] md:max-w-md md:text-base"
             >
               {slide.sub}
             </motion.p>
           </motion.div>
         </AnimatePresence>
+        </div>
       </section>
 
       {/* Footer */}
-      <footer className="min-h-[140px] px-6 pb-10">
+      <footer className="min-h-[140px] px-6 pb-10 md:px-12">
         <div className="mb-6 flex justify-center gap-2">
           {SLIDES.map((s, i) => (
             <motion.span
@@ -129,7 +131,7 @@ export default function OnboardingPage() {
           onClick={handleNext}
           whileTap={{ scale: 0.97 }}
           animate={{ backgroundColor: slide.accent }}
-          className="h-14 w-full rounded-full font-medium text-white"
+          className="h-14 w-full max-w-sm rounded-full font-medium text-white mx-auto block"
         >
           {currentIndex === SLIDES.length - 1 ? "Get Started" : "Continue"}
         </motion.button>
