@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Serif_Display, DM_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -18,6 +18,25 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "Mindrop — your second brain",
   description: "One box for everything in your head. Expenses, ideas, books, travel — just type it.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Mindrop",
+    statusBarStyle: "default",
+  },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+    "format-detection": "telephone=no",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#faf9f7",
 };
 
 export default function RootLayout({

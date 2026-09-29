@@ -15,11 +15,11 @@ interface EntriesFeedProps {
 
 const EASE = [0.215, 0.61, 0.355, 1] as const;
 
-function dayKey(timestamp: string) {
+export function dayKey(timestamp: string) {
   return format(new Date(timestamp), "yyyy-MM-dd");
 }
 
-function dayLabel(key: string) {
+export function dayLabel(key: string) {
   const [y, m, d] = key.split("-").map(Number);
   const date = new Date(y, m - 1, d);
   if (isToday(date)) return "Today";
