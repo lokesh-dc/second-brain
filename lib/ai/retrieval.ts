@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Entry, ParsedQuery, RetrievalAnswer } from "@/types";
-import { hybridSearch } from "./hybrid-search";
+import { hybridSearch, scheduleRetrievalLogging } from "./hybrid-search";
 import { chatJSON } from "./groq";
 
 function computeAggregations(entries: Entry[], parsed: ParsedQuery) {
@@ -94,6 +94,11 @@ Output:`;
       validIds.has(id),
     );
 
+    // Instrumentation (diagnostic only): track which entries were actually
+    // surfaced in this answer. Non-blocking — never delays the response,
+    // never throws.
+    scheduleRetrievalLogging(sb, userId, result.entry_ids);
+
     return result;
   } catch (err) {
     console.error("[ai] retrieval answer failed:", err);
@@ -102,10 +107,14 @@ Output:`;
         ? `You spent ${precomputed.currency} ${precomputed.total} across ${precomputed.count} entries ${timeContext}.`
         : `Found ${entries.length} entries ${timeContext}.`;
 
-    return {
+    const fallback: RetrievalAnswer = {
       answer: fallbackAnswer,
       entry_ids: entries.map((e) => e.id),
       type: parsed.aggregation ?? "narrative",
     };
+
+    scheduleRetrievalLogging(sb, userId, fallback.entry_ids);
+
+    return fallback;
   }
 }

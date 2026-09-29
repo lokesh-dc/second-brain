@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { after } from "next/server";
 import { generateEmbedding } from "./embeddings";
 import { Category, Entity, Entry, MatchDocumentsRow, ParsedQuery } from "@/types";
 
@@ -75,6 +76,58 @@ function reciprocalRankFusion(
   return Array.from(entryMap.values())
     .sort((a, b) => (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0))
     .slice(0, 10);
+}
+
+/**
+ * Diagnostic instrumentation: bump retrieval_count / last_retrieved_at for
+ * entries that were actually surfaced in an answer.
+ *
+ * Single batched UPDATE via the log_entry_retrievals RPC
+ * (WHERE id = ANY(p_entry_ids)) — never one query per entry.
+ * Logs failures but never throws, so search never fails because
+ * instrumentation failed.
+ */
+export async function logRetrievedEntries(
+  sb: SupabaseClient,
+  userId: string,
+  entryIds: string[],
+): Promise<void> {
+  const ids = [...new Set(entryIds)].filter(Boolean);
+  if (ids.length === 0) return;
+
+  try {
+    const { error } = await sb.rpc("log_entry_retrievals", {
+      p_entry_ids: ids,
+      p_user_id: userId,
+    });
+    if (error) {
+      console.error(
+        "[hybridSearch] retrieval instrumentation failed:",
+        error,
+      );
+    }
+  } catch (err) {
+    console.error("[hybridSearch] retrieval instrumentation failed:", err);
+  }
+}
+
+/**
+ * Non-blocking wrapper around logRetrievedEntries. Runs after the response
+ * is sent (Next `after`) so retrieval latency doesn't regress; falls back
+ * to a fire-and-forget call when `after` isn't available (e.g. tests).
+ * Never awaits — never blocks the user's search.
+ */
+export function scheduleRetrievalLogging(
+  sb: SupabaseClient,
+  userId: string,
+  entryIds: string[],
+): void {
+  if (!entryIds || entryIds.length === 0) return;
+  try {
+    after(() => logRetrievedEntries(sb, userId, entryIds));
+  } catch {
+    void logRetrievedEntries(sb, userId, entryIds);
+  }
 }
 
 export async function hybridSearch(

@@ -29,6 +29,8 @@ export type Entry = {
   entities?: Entity[];
   tags?: string[];
   embedding_doc?: string;
+  retrieval_count?: number;
+  last_retrieved_at?: string | null;
 };
 
 export type EntryEntity = {
