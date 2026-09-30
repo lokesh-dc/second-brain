@@ -11,8 +11,10 @@ export function DigestNarrativeCard({ narrative, updatedAt }: Props) {
   const timeAgo = formatDistanceToNow(new Date(updatedAt), { addSuffix: true });
 
   return (
-    <div className="mx-5 mb-5 rounded-2xl bg-white p-5 shadow-sm shadow-black/5 md:mx-8">
-      <p className="mb-3 font-display text-lg leading-relaxed">{narrative}</p>
+    <div className="rounded-2xl border border-line bg-white p-5">
+      <p className="mb-3 font-display text-lg leading-relaxed text-pretty">
+        {narrative}
+      </p>
       <p className="text-xs text-ink-3">Updated {timeAgo}</p>
     </div>
   );
