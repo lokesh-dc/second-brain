@@ -39,21 +39,19 @@ function TurnBlock({
         <>
           <AnswerCard answer={turn.answer} />
           {sourceCount > 0 && (
-            <button
-              type="button"
-              onClick={onViewSources}
-              aria-label={`View ${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`}
-              className="flex w-full items-center rounded-xl border border-line bg-white px-4 py-3 text-left shadow-sm transition-colors hover:border-ink-3/40"
-            >
-              <span className="text-sm font-semibold text-ink">
-                {sourceCount} {sourceCount === 1 ? "Source" : "Sources"}
-              </span>
-              <ChevronRight
-                size={18}
-                className="ml-auto shrink-0 text-ink-3"
-                aria-hidden="true"
-              />
-            </button>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={onViewSources}
+                aria-label={`View ${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`}
+                className="flex items-center gap-0.5 px-1 py-1 text-[13px] font-medium text-ink-3 transition-colors hover:text-ink"
+              >
+                <span>
+                  {sourceCount} {sourceCount === 1 ? "Source" : "Sources"}
+                </span>
+                <ChevronRight size={16} aria-hidden="true" />
+              </button>
+            </div>
           )}
         </>
       )}
@@ -264,20 +262,22 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
         )}
       </div>
 
-      {/* Input + follow-ups docked above it */}
-      <div
-        className="fixed inset-x-4 z-50 mx-auto max-w-lg md:inset-x-auto md:left-[var(--sidebar-w)] md:right-0 md:mx-auto md:max-w-4xl md:px-8"
-        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
-      >
-        <FollowupBar followups={visibleFollowups} onFollowup={handleSearch} />
-        <InputBar
-          onSubmit={handleSearch}
-          isLoading={isAsking}
-          forceSearchMode
-          placeholder={
-            hasTurns ? "Ask a follow-up..." : "Ask your mind anything..."
-          }
-        />
+      {/* Input + follow-ups docked above it, frosted so cards scrolling
+          underneath don't visually merge with them */}
+      <div className="fixed inset-x-0 bottom-0 z-50 md:left-[var(--sidebar-w)]">
+        <div className="bg-gradient-to-t from-paper via-paper/90 to-transparent px-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-8 backdrop-blur-[2px] md:px-8">
+          <div className="mx-auto max-w-lg md:max-w-4xl">
+            <FollowupBar followups={visibleFollowups} onFollowup={handleSearch} />
+            <InputBar
+              onSubmit={handleSearch}
+              isLoading={isAsking}
+              forceSearchMode
+              placeholder={
+                hasTurns ? "Ask a follow-up..." : "Ask your mind anything..."
+              }
+            />
+          </div>
+        </div>
       </div>
 
       <SourcesDialog
