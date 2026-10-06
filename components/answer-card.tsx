@@ -4,37 +4,21 @@ import { Sparkles } from "lucide-react";
 
 interface AnswerCardProps {
   answer: string;
-  followups?: string[];
-  /** Only the latest turn's chips are interactive; older turns render dimmed. */
-  chipsEnabled?: boolean;
-  onFollowup?: (query: string) => void;
 }
 
 /**
- * Neutral answer card: white, floating shadow, violet left accent bar.
- * Rendered ABOVE its sources inside each thread turn. No dismiss control —
- * clearing the thread is the header "New search" action (Task 3).
+ * Neutral answer card: white, floating shadow, no border, no accent bar.
+ * Rendered ABOVE its sources entry-point inside each thread turn.
+ * No dismiss control — clearing the thread is the header "New search" action.
  */
-export default function AnswerCard({
-  answer,
-  followups = [],
-  chipsEnabled = true,
-  onFollowup,
-}: AnswerCardProps) {
+export default function AnswerCard({ answer }: AnswerCardProps) {
   if (!answer) return null;
-
-  const showChips = followups.length > 0 && onFollowup;
 
   return (
     <section
       aria-live="polite"
-      className="turn-enter relative overflow-hidden rounded-2xl bg-white py-4 pl-5 pr-4 shadow-[0_10px_28px_-14px_rgba(26,26,26,0.28)]"
+      className="turn-enter rounded-2xl bg-white p-4 shadow-[0_10px_28px_-14px_rgba(26,26,26,0.28)]"
     >
-      {/* Violet left accent bar (small accent only — no full fill) */}
-      <span
-        aria-hidden="true"
-        className="absolute bottom-4 left-2.5 top-4 w-1 rounded-full bg-brand"
-      />
       <div className="mb-2 flex items-center gap-1.5">
         <Sparkles size={14} className="shrink-0 text-brand" aria-hidden="true" />
         <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
@@ -42,22 +26,6 @@ export default function AnswerCard({
         </span>
       </div>
       <p className="text-[16px] leading-relaxed text-ink">{answer}</p>
-      {showChips && (
-        <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {followups.map((chip) => (
-            <button
-              key={chip}
-              type="button"
-              disabled={!chipsEnabled}
-              onClick={() => onFollowup(chip)}
-              aria-label={`Send follow-up: ${chip}`}
-              className="shrink-0 rounded-full border border-line bg-paper px-3.5 py-1.5 text-[13px] font-medium text-ink-2 transition-colors hover:border-brand/50 hover:text-ink disabled:cursor-default disabled:opacity-50 disabled:hover:border-line disabled:hover:text-ink-2"
-            >
-              {chip}
-            </button>
-          ))}
-        </div>
-      )}
     </section>
   );
 }
@@ -67,9 +35,8 @@ export function AnswerCardSkeleton() {
   return (
     <div
       aria-hidden="true"
-      className="relative overflow-hidden rounded-2xl bg-white py-4 pl-5 pr-4 shadow-[0_10px_28px_-14px_rgba(26,26,26,0.28)]"
+      className="rounded-2xl bg-white p-4 shadow-[0_10px_28px_-14px_rgba(26,26,26,0.28)]"
     >
-      <span className="absolute bottom-4 left-2.5 top-4 w-1 rounded-full bg-brand/30" />
       <div className="mb-3 h-3 w-32 animate-pulse rounded-full bg-line" />
       <div className="h-4 w-full animate-pulse rounded-md bg-hairline" />
       <div className="mt-2 h-4 w-4/5 animate-pulse rounded-md bg-hairline" />
@@ -87,7 +54,7 @@ export function AnswerErrorCard({ onRetry }: AnswerErrorCardProps) {
   return (
     <section
       aria-live="polite"
-      className="turn-enter relative overflow-hidden rounded-2xl bg-white px-5 py-4 shadow-[0_10px_28px_-14px_rgba(26,26,26,0.28)]"
+      className="turn-enter rounded-2xl bg-white p-4 shadow-[0_10px_28px_-14px_rgba(26,26,26,0.28)]"
     >
       <p className="text-[15px] leading-relaxed text-ink">
         Something went wrong answering that. Your earlier results are still

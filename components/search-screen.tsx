@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import EntryCard from "./entry-card";
 import EntrySheet from "./entry-sheet";
 import InputBar from "./input-bar";
 import AnswerCard, { AnswerCardSkeleton, AnswerErrorCard } from "./answer-card";
+import SourcesDialog from "./sources-dialog";
 import { useAskThread } from "./search-thread-provider";
 import { updateEntry, deleteEntry } from "@/actions/entries";
 import { Entry, EntryEditData, ThreadTurn } from "@/types";
@@ -18,20 +18,14 @@ interface SearchScreenProps {
 
 function TurnBlock({
   turn,
-  isLatest,
-  isAsking,
-  entries,
-  onFollowup,
+  sourceCount,
+  onViewSources,
   onRetry,
-  onOpenEntry,
 }: {
   turn: ThreadTurn;
-  isLatest: boolean;
-  isAsking: boolean;
-  entries: Entry[];
-  onFollowup: (query: string) => void;
+  sourceCount: number;
+  onViewSources: () => void;
   onRetry: () => void;
-  onOpenEntry: (entry: Entry) => void;
 }) {
   return (
     <div id={`turn-${turn.id}`} className="scroll-mt-4 space-y-3">
@@ -43,30 +37,52 @@ function TurnBlock({
       {turn.status === "error" && <AnswerErrorCard onRetry={onRetry} />}
       {turn.status === "done" && (
         <>
-          <AnswerCard
-            answer={turn.answer}
-            followups={turn.followups}
-            chipsEnabled={isLatest && !isAsking}
-            onFollowup={onFollowup}
-          />
-          {entries.length > 0 && (
-            <div className="space-y-3">
-              <p className="pt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
-                {entries.length} {entries.length === 1 ? "Source" : "Sources"}
-              </p>
-              <div className="grid gap-3 md:grid-cols-2">
-                {entries.map((entry) => (
-                  <EntryCard
-                    key={entry.id}
-                    entry={entry}
-                    onPress={() => onOpenEntry(entry)}
-                  />
-                ))}
-              </div>
-            </div>
+          <AnswerCard answer={turn.answer} />
+          {sourceCount > 0 && (
+            <button
+              type="button"
+              onClick={onViewSources}
+              aria-label={`View ${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`}
+              className="flex w-full items-center rounded-xl border border-line bg-white px-4 py-3 text-left shadow-sm transition-colors hover:border-ink-3/40"
+            >
+              <span className="text-sm font-semibold text-ink">
+                {sourceCount} {sourceCount === 1 ? "Source" : "Sources"}
+              </span>
+              <ChevronRight
+                size={18}
+                className="ml-auto shrink-0 text-ink-3"
+                aria-hidden="true"
+              />
+            </button>
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function FollowupBar({
+  followups,
+  onFollowup,
+}: {
+  followups: string[];
+  onFollowup: (query: string) => void;
+}) {
+  if (followups.length === 0) return null;
+
+  return (
+    <div className="mb-2 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {followups.map((chip) => (
+        <button
+          key={chip}
+          type="button"
+          onClick={() => onFollowup(chip)}
+          aria-label={`Send follow-up: ${chip}`}
+          className="shrink-0 rounded-full border border-line bg-white px-3.5 py-1.5 text-[13px] font-medium text-ink-2 shadow-sm transition-colors hover:border-brand/50 hover:text-ink"
+        >
+          {chip}
+        </button>
+      ))}
     </div>
   );
 }
@@ -78,6 +94,7 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
 
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sourcesTurnId, setSourcesTurnId] = useState<string | null>(null);
 
   // Keep the provider's id -> entry cache fresh so new answers resolve.
   useEffect(() => {
@@ -180,6 +197,25 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
     void ask(text);
   };
 
+  const handleOpenEntry = (entry: Entry) => {
+    // The entry sheet (z-40/z-50) opens above the sources dialog (z-30),
+    // so the two dialogs visibly stack.
+    setSelectedEntry(entry);
+    setSheetOpen(true);
+  };
+
+  // Follow-ups live above the input field and always reflect the latest
+  // finished turn. Hidden while an answer is loading or when empty.
+  const lastDoneTurn =
+    turns.length > 0 && turns[turns.length - 1].status === "done"
+      ? turns[turns.length - 1]
+      : null;
+  const visibleFollowups =
+    !isAsking && lastDoneTurn ? lastDoneTurn.followups : [];
+
+  const dialogEntries =
+    sourcesTurnId != null ? (entriesByTurn.get(sourcesTurnId) ?? []) : [];
+
   return (
     <main className="mx-auto min-h-dvh max-w-lg pb-32 md:max-w-4xl md:pb-16">
       {/* Header */}
@@ -216,29 +252,24 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
             </p>
           </div>
         ) : (
-          turns.map((turn, i) => (
+          turns.map((turn) => (
             <TurnBlock
               key={turn.id}
               turn={turn}
-              isLatest={i === turns.length - 1}
-              isAsking={isAsking}
-              entries={entriesByTurn.get(turn.id) ?? []}
-              onFollowup={handleSearch}
+              sourceCount={(entriesByTurn.get(turn.id) ?? []).length}
+              onViewSources={() => setSourcesTurnId(turn.id)}
               onRetry={() => void retry(turn.id)}
-              onOpenEntry={(entry) => {
-                setSelectedEntry(entry);
-                setSheetOpen(true);
-              }}
             />
           ))
         )}
       </div>
 
-      {/* Input */}
+      {/* Input + follow-ups docked above it */}
       <div
         className="fixed inset-x-4 z-50 mx-auto max-w-lg md:inset-x-auto md:left-[var(--sidebar-w)] md:right-0 md:mx-auto md:max-w-4xl md:px-8"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
       >
+        <FollowupBar followups={visibleFollowups} onFollowup={handleSearch} />
         <InputBar
           onSubmit={handleSearch}
           isLoading={isAsking}
@@ -248,6 +279,13 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
           }
         />
       </div>
+
+      <SourcesDialog
+        entries={dialogEntries}
+        open={sourcesTurnId != null}
+        onClose={() => setSourcesTurnId(null)}
+        onOpenEntry={handleOpenEntry}
+      />
 
       <EntrySheet
         entry={selectedEntry}
