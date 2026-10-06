@@ -4,6 +4,10 @@ import { Sparkles } from "lucide-react";
 
 interface AnswerCardProps {
   answer: string;
+  followups?: string[];
+  /** Only the latest turn's chips are interactive; older turns render dimmed. */
+  chipsEnabled?: boolean;
+  onFollowup?: (query: string) => void;
 }
 
 /**
@@ -11,8 +15,15 @@ interface AnswerCardProps {
  * Rendered ABOVE its sources inside each thread turn. No dismiss control —
  * clearing the thread is the header "New search" action (Task 3).
  */
-export default function AnswerCard({ answer }: AnswerCardProps) {
+export default function AnswerCard({
+  answer,
+  followups = [],
+  chipsEnabled = true,
+  onFollowup,
+}: AnswerCardProps) {
   if (!answer) return null;
+
+  const showChips = followups.length > 0 && onFollowup;
 
   return (
     <section
@@ -31,6 +42,22 @@ export default function AnswerCard({ answer }: AnswerCardProps) {
         </span>
       </div>
       <p className="text-[16px] leading-relaxed text-ink">{answer}</p>
+      {showChips && (
+        <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {followups.map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              disabled={!chipsEnabled}
+              onClick={() => onFollowup(chip)}
+              aria-label={`Send follow-up: ${chip}`}
+              className="shrink-0 rounded-full border border-line bg-paper px-3.5 py-1.5 text-[13px] font-medium text-ink-2 transition-colors hover:border-brand/50 hover:text-ink disabled:cursor-default disabled:opacity-50 disabled:hover:border-line disabled:hover:text-ink-2"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

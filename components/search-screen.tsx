@@ -156,7 +156,12 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
           </div>
         ) : (
           <div className="space-y-3">
-            <AnswerCard answer={aiResponse.answer} />
+            <AnswerCard
+              answer={aiResponse.answer}
+              followups={aiResponse.followups}
+              chipsEnabled={!isLoading}
+              onFollowup={handleSearch}
+            />
             {displayEntries.length > 0 && (
               <>
                 <p className="pt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
