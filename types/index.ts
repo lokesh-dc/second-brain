@@ -151,6 +151,22 @@ export type RetrievalHistoryTurn = {
   answer: string;
 };
 
+export type ThreadTurnStatus = "loading" | "done" | "error";
+
+/** One question in a Search thread: its answer plus its own sources. */
+export type ThreadTurn = {
+  id: string;
+  query: string;
+  answer: string;
+  entryIds: string[];
+  /** Resolved entries for rendering (snapshot; reconciled with fresh data). */
+  entries: Entry[];
+  followups: string[];
+  type: "answer" | "no_match";
+  status: ThreadTurnStatus;
+  createdAt: number;
+};
+
 export type DigestPeriod = "today" | "week" | "month";
 
 export type DigestRawData = {

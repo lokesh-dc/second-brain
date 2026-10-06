@@ -3,10 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { parseQuery } from "@/lib/ai/query-parser";
 import { generateRetrievalAnswer } from "@/lib/ai/retrieval";
-import { RetrievalAnswer } from "@/types";
+import { RetrievalAnswer, RetrievalHistoryTurn } from "@/types";
 
 export async function askMind(
   question: string,
+  history: RetrievalHistoryTurn[] = [],
 ): Promise<RetrievalAnswer | null> {
   const trimmed = question.trim();
   if (!trimmed) return null;
@@ -19,5 +20,5 @@ export async function askMind(
   if (!user) return null;
 
   const parsed = await parseQuery(trimmed);
-  return generateRetrievalAnswer(sb, parsed, user.id);
+  return generateRetrievalAnswer(sb, parsed, user.id, { history });
 }

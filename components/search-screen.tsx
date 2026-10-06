@@ -1,29 +1,125 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import EntryCard from "./entry-card";
 import EntrySheet from "./entry-sheet";
 import InputBar from "./input-bar";
-import AnswerCard from "./answer-card";
-import { askMind } from "@/actions/search";
+import AnswerCard, { AnswerCardSkeleton, AnswerErrorCard } from "./answer-card";
+import { useAskThread } from "./search-thread-provider";
 import { updateEntry, deleteEntry } from "@/actions/entries";
-import { Entry, EntryEditData, RetrievalAnswer } from "@/types";
+import { Entry, EntryEditData, ThreadTurn } from "@/types";
 
 interface SearchScreenProps {
   allEntries: Entry[];
 }
 
+function TurnBlock({
+  turn,
+  isLatest,
+  isAsking,
+  entries,
+  onFollowup,
+  onRetry,
+  onOpenEntry,
+}: {
+  turn: ThreadTurn;
+  isLatest: boolean;
+  isAsking: boolean;
+  entries: Entry[];
+  onFollowup: (query: string) => void;
+  onRetry: () => void;
+  onOpenEntry: (entry: Entry) => void;
+}) {
+  return (
+    <div id={`turn-${turn.id}`} className="scroll-mt-4 space-y-3">
+      <p className="truncate text-[13px] text-ink-3">
+        <span className="font-semibold text-ink-2">You asked: </span>
+        {turn.query}
+      </p>
+      {turn.status === "loading" && <AnswerCardSkeleton />}
+      {turn.status === "error" && <AnswerErrorCard onRetry={onRetry} />}
+      {turn.status === "done" && (
+        <>
+          <AnswerCard
+            answer={turn.answer}
+            followups={turn.followups}
+            chipsEnabled={isLatest && !isAsking}
+            onFollowup={onFollowup}
+          />
+          {entries.length > 0 && (
+            <div className="space-y-3">
+              <p className="pt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
+                {entries.length} {entries.length === 1 ? "Source" : "Sources"}
+              </p>
+              <div className="grid gap-3 md:grid-cols-2">
+                {entries.map((entry) => (
+                  <EntryCard
+                    key={entry.id}
+                    entry={entry}
+                    onPress={() => onOpenEntry(entry)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function SearchScreen({ allEntries }: SearchScreenProps) {
   const router = useRouter();
-  const listRef = useRef<HTMLDivElement>(null);
+  const { turns, hasTurns, isAsking, ask, retry, clear, setEntriesCache } =
+    useAskThread();
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [aiResponse, setAiResponse] = useState<RetrievalAnswer | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Keep the provider's id -> entry cache fresh so new answers resolve.
+  useEffect(() => {
+    setEntriesCache(allEntries);
+  }, [allEntries, setEntriesCache]);
+
+  // Auto-scroll to the newest turn when it is added or finishes.
+  const lastTurn = turns.length > 0 ? turns[turns.length - 1] : null;
+  const lastTurnKey = lastTurn ? `${lastTurn.id}:${lastTurn.status}` : null;
+  useEffect(() => {
+    if (!lastTurnKey) return;
+    const id = lastTurnKey.split(":")[0];
+    const el = document.getElementById(`turn-${id}`);
+    if (!el) return;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    el.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "end",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turns.length, lastTurnKey]);
+
+  // Resolve each turn's cited ids against fresh entries first (so edits show
+  // up), falling back to the snapshot stored with the turn. Ids missing from
+  // both (e.g. deleted entries) are dropped from sources.
+  const entriesByTurn = useMemo(() => {
+    const map = new Map<string, Entry[]>();
+    for (const turn of turns) {
+      map.set(
+        turn.id,
+        turn.entryIds.flatMap(
+          (id) =>
+            allEntries.find((e) => e.id === id) ??
+            turn.entries.find((e) => e.id === id) ??
+            [],
+        ),
+      );
+    }
+    return map;
+  }, [turns, allEntries]);
 
   const handleDelete = async (id: string) => {
     const { ok, error } = await deleteEntry(id);
@@ -80,33 +176,10 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
     toast.success("Entry updated");
     router.refresh();
   };
-  const [, startTransition] = useTransition();
 
   const handleSearch = (text: string) => {
-    if (!text.trim()) return;
-    setIsLoading(true);
-    startTransition(async () => {
-      try {
-        const response = await askMind(text);
-        if (response) {
-          setAiResponse(response);
-          // Scroll to top where the results are
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        }
-      } catch {
-        console.error("Search error");
-      } finally {
-        setIsLoading(false);
-      }
-    });
+    void ask(text);
   };
-
-  // Filter entries based on AI response if available (model order kept)
-  const displayEntries = aiResponse
-    ? aiResponse.entry_ids.flatMap(
-        (id) => allEntries.find((e) => e.id === id) ?? [],
-      )
-    : [];
 
   return (
     <main className="mx-auto min-h-dvh max-w-lg pb-32 md:max-w-4xl md:pb-16">
@@ -121,9 +194,9 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
         </button>
         <h1 className="font-display text-[28px]">Search</h1>
         {/* Clears the whole thread. Only visible when a thread exists. */}
-        {aiResponse && (
+        {hasTurns && (
           <button
-            onClick={() => setAiResponse(null)}
+            onClick={clear}
             aria-label="New search"
             className="ml-auto rounded-full px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-hairline hover:text-ink"
           >
@@ -132,57 +205,33 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
         )}
       </header>
 
-      {/* Results: answer first, evidence below */}
-      <div ref={listRef} className="space-y-3 px-5 md:px-8">
-        {!aiResponse ? (
+      {/* Thread: each turn is an answer followed by its sources */}
+      <div className="space-y-6 px-5 md:px-8">
+        {!hasTurns && !isAsking ? (
           <div className="flex flex-col items-center pt-32 text-center">
-            {isLoading ? (
-              <>
-                <Loader2 size={36} className="animate-spin text-brand" />
-                <p className="mt-6 text-sm text-[#94a3b8]">
-                  digging through your memories...
-                </p>
-              </>
-            ) : (
-              <>
-                <h2 className="text-lg font-semibold text-[#94a3b8]">
-                  search your mind
-                </h2>
-                <p className="mt-2 text-sm text-[#cbd5e1]">
-                  ask anything about your past entries
-                </p>
-              </>
-            )}
+            <h2 className="text-lg font-semibold text-[#94a3b8]">
+              search your mind
+            </h2>
+            <p className="mt-2 text-sm text-[#cbd5e1]">
+              ask anything about your past entries
+            </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            <AnswerCard
-              answer={aiResponse.answer}
-              followups={aiResponse.followups}
-              chipsEnabled={!isLoading}
+          turns.map((turn, i) => (
+            <TurnBlock
+              key={turn.id}
+              turn={turn}
+              isLatest={i === turns.length - 1}
+              isAsking={isAsking}
+              entries={entriesByTurn.get(turn.id) ?? []}
               onFollowup={handleSearch}
+              onRetry={() => void retry(turn.id)}
+              onOpenEntry={(entry) => {
+                setSelectedEntry(entry);
+                setSheetOpen(true);
+              }}
             />
-            {displayEntries.length > 0 && (
-              <>
-                <p className="pt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
-                  {displayEntries.length}{" "}
-                  {displayEntries.length === 1 ? "Source" : "Sources"}
-                </p>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {displayEntries.map((entry) => (
-                    <EntryCard
-                      key={entry.id}
-                      entry={entry}
-                      onPress={() => {
-                        setSelectedEntry(entry);
-                        setSheetOpen(true);
-                      }}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          ))
         )}
       </div>
 
@@ -193,10 +242,10 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
       >
         <InputBar
           onSubmit={handleSearch}
-          isLoading={isLoading}
+          isLoading={isAsking}
           forceSearchMode
           placeholder={
-            aiResponse ? "Ask a follow-up..." : "Ask your mind anything..."
+            hasTurns ? "Ask a follow-up..." : "Ask your mind anything..."
           }
         />
       </div>
