@@ -432,7 +432,7 @@ function DesktopSlideOver({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-ink/30"
+            className="fixed inset-0 z-[70] bg-ink/30"
           />
           <motion.aside
             role="dialog"
@@ -441,7 +441,7 @@ function DesktopSlideOver({
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 260 }}
-            className="fixed inset-y-0 right-0 z-50 w-full max-w-[420px] overflow-y-auto bg-white p-6 shadow-2xl"
+            className="fixed inset-y-0 right-0 z-[80] w-full max-w-[420px] overflow-y-auto bg-white p-6 shadow-2xl"
           >
             <EntryContent
               entry={entry}
@@ -500,8 +500,8 @@ export default function EntrySheet({
       }}
     >
       <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-40 bg-ink/30" />
-        <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white px-6 pb-6 pt-1 outline-none">
+        <Drawer.Overlay className="fixed inset-0 z-[70] bg-ink/30" />
+        <Drawer.Content className="fixed inset-x-0 bottom-0 z-[80] mx-auto max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white px-6 pb-6 pt-1 outline-none">
           <Drawer.Title className="sr-only">Entry details</Drawer.Title>
 
           {/* Handle bar */}
