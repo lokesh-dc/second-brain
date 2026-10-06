@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import EntryCard from "./entry-card";
 import EntrySheet from "./entry-sheet";
 import InputBar from "./input-bar";
-import RetrievalResult from "./retrieval-result";
+import AnswerCard from "./answer-card";
 import { askMind } from "@/actions/search";
 import { updateEntry, deleteEntry } from "@/actions/entries";
 import { Entry, EntryEditData, RetrievalAnswer } from "@/types";
@@ -101,9 +101,11 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
     });
   };
 
-  // Filter entries based on AI response if available
+  // Filter entries based on AI response if available (model order kept)
   const displayEntries = aiResponse
-    ? allEntries.filter((e) => aiResponse.entry_ids.includes(e.id))
+    ? aiResponse.entry_ids.flatMap(
+        (id) => allEntries.find((e) => e.id === id) ?? [],
+      )
     : [];
 
   return (
@@ -120,9 +122,9 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
         <h1 className="font-display text-[28px]">Search</h1>
       </header>
 
-      {/* Results */}
-      <div ref={listRef} className="px-5 md:px-8 md:columns-2 md:gap-3 [&>*]:mb-3">
-        {displayEntries.length === 0 ? (
+      {/* Results: answer first, evidence below */}
+      <div ref={listRef} className="space-y-3 px-5 md:px-8">
+        {!aiResponse ? (
           <div className="flex flex-col items-center pt-32 text-center">
             {isLoading ? (
               <>
@@ -134,44 +136,40 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
             ) : (
               <>
                 <h2 className="text-lg font-semibold text-[#94a3b8]">
-                  {aiResponse ? "no matching memories found" : "search your mind"}
+                  search your mind
                 </h2>
                 <p className="mt-2 text-sm text-[#cbd5e1]">
-                  {aiResponse
-                    ? "try a different query"
-                    : "ask anything about your past entries"}
+                  ask anything about your past entries
                 </p>
               </>
             )}
           </div>
         ) : (
-          displayEntries.map((entry) => (
-            <EntryCard
-              key={entry.id}
-              entry={entry}
-              onPress={() => {
-                setSelectedEntry(entry);
-                setSheetOpen(true);
-              }}
-            />
-          ))
+          <div className="space-y-3">
+            <AnswerCard answer={aiResponse.answer} />
+            {displayEntries.length > 0 && (
+              <>
+                <p className="pt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
+                  {displayEntries.length}{" "}
+                  {displayEntries.length === 1 ? "Source" : "Sources"}
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {displayEntries.map((entry) => (
+                    <EntryCard
+                      key={entry.id}
+                      entry={entry}
+                      onPress={() => {
+                        setSelectedEntry(entry);
+                        setSheetOpen(true);
+                      }}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
-
-      {/* AI answer overlay */}
-      {aiResponse && (
-        <div
-          className="fixed inset-x-4 z-40 mx-auto max-w-lg md:left-auto md:right-8 md:top-6 md:mx-0 md:max-w-md"
-          style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 84px)" }}
-        >
-          <RetrievalResult
-            answer={aiResponse.answer}
-            entryCount={aiResponse.entry_ids.length}
-            onClose={() => setAiResponse(null)}
-            onPress={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          />
-        </div>
-      )}
 
       {/* Input */}
       <div

@@ -24,6 +24,28 @@ body {
   color: var(--color-ink);
 }
 
+/* New search-thread turns fade/slide in subtly (150-200ms). */
+@keyframes turn-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.turn-enter {
+  animation: turn-in 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-enter {
+    animation: none;
+  }
+}
+
 /* Vaul injects a 200%-tall ::after below bottom drawers for its rubber-band
    background bleed. Inside our overflow-y-auto sheet it becomes scrollable
    overflow, so disable it — the sheet has its own solid background. */
