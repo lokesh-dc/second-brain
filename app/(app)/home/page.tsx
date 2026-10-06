@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { loadEntries } from "@/lib/entries";
+import { ENTRIES_PAGE_SIZE } from "@/constants/entries";
 import EntriesFeed from "@/components/entries-feed";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export default async function HomePage() {
     }
   }
 
-  const entries = await loadEntries();
+  const entries = await loadEntries(ENTRIES_PAGE_SIZE);
   const dateLabel = format(new Date(), "EEEE, d MMMM");
 
   return (

@@ -56,3 +56,15 @@ export const DEFAULT_CATEGORIES: CategoryDef[] = [
   { id: "shopping", name: "Shopping", icon: ShoppingBag, color: "#a78bfa" },
   { id: "health", name: "Health", icon: Activity, color: "#f472b6" },
 ];
+
+/** Full set of classifications the AI knows — used for the edit dropdown. */
+export const ALL_CATEGORY_NAMES = [
+  "Expenses",
+  "Reading",
+  "Travel",
+  "Ideas",
+  "Shopping",
+  "Health",
+  "Media",
+  "Misc",
+];

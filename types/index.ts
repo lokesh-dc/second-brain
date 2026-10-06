@@ -74,6 +74,16 @@ export type EntityInput = {
   type: EntityType;
 };
 
+export type EntryEditData = {
+  raw_text: string;
+  category: string;
+  summary: string;
+  amount: number | null;
+  currency: string | null;
+  tags: string[];
+  entities: EntityInput[];
+};
+
 export type ClassifierItem = {
   category:
     | "expense"

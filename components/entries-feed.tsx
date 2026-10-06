@@ -1,11 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { format, isToday, isYesterday } from "date-fns";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import EntryCard from "./entry-card";
 import EntrySheet from "./entry-sheet";
-import { Entry } from "@/types";
+import { updateEntry, deleteEntry, loadMoreEntries } from "@/actions/entries";
+import { ENTRIES_PAGE_SIZE } from "@/constants/entries";
+import { Entry, EntryEditData } from "@/types";
 
 interface EntriesFeedProps {
   firstName: string;
@@ -40,11 +45,97 @@ export default function EntriesFeed({
 }: EntriesFeedProps) {
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [olderEntries, setOlderEntries] = useState<Entry[]>([]);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [loadedAll, setLoadedAll] = useState(false);
   const reduceMotion = useReducedMotion();
+  const router = useRouter();
+
+  const allEntries = useMemo(
+    () => [...initialEntries, ...olderEntries],
+    [initialEntries, olderEntries],
+  );
+
+  const loadOlder = async () => {
+    if (loadingOlder || loadedAll) return;
+    const before = allEntries[allEntries.length - 1]?.timestamp;
+    if (!before) return;
+
+    setLoadingOlder(true);
+    const res = await loadMoreEntries(before);
+    setLoadingOlder(false);
+
+    if (!res.ok) {
+      toast.error(res.error || "Failed to load older drops");
+      return;
+    }
+
+    const seen = new Set(allEntries.map((e) => e.id));
+    const fresh = (res.entries ?? []).filter((e) => !seen.has(e.id));
+
+    setOlderEntries((prev) => [...prev, ...fresh]);
+    if (fresh.length < ENTRIES_PAGE_SIZE) setLoadedAll(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    const { ok, error } = await deleteEntry(id);
+
+    if (!ok) {
+      toast.error(error || "Failed to delete entry");
+      return;
+    }
+
+    setSheetOpen(false);
+    setSelectedEntry(null);
+    toast.success("Entry deleted");
+    router.refresh();
+  };
+
+  const handleEdit = async (id: string, data: EntryEditData) => {
+    const { ok, error } = await updateEntry(id, data);
+
+    if (!ok) {
+      toast.error(error || "Failed to edit entry");
+      return;
+    }
+
+    const fallbackCategory = {
+      id: data.category.toLowerCase(),
+      user_id: "",
+      name: data.category,
+      is_default: true,
+    };
+
+    setSelectedEntry((prev) =>
+      prev
+        ? {
+            ...prev,
+            raw_text: data.raw_text,
+            summary: data.summary,
+            amount: data.amount ?? prev.amount,
+            currency: data.currency ?? prev.currency,
+            tags: data.tags,
+            category:
+              prev.category?.name?.toLowerCase() === data.category.toLowerCase()
+                ? prev.category
+                : fallbackCategory,
+            entities: data.entities.map((e, i) => ({
+              id: `${prev.id}-${i}`,
+              user_id: "",
+              name: e.name,
+              type: e.type,
+            })),
+          }
+        : prev,
+    );
+
+    toast.success("Entry updated");
+    router.refresh();
+  };
 
   const groups = useMemo(() => {
     const byDay = new Map<string, Entry[]>();
-    for (const entry of initialEntries) {
+    for (const entry of allEntries) {
       const key = dayKey(entry.timestamp);
       const bucket = byDay.get(key);
       if (bucket) bucket.push(entry);
@@ -68,7 +159,7 @@ export default function EntriesFeed({
         count: 0,
       },
     ).groups;
-  }, [initialEntries]);
+  }, [allEntries]);
 
   const openEntry = (entry: Entry) => {
     setSelectedEntry(entry);
@@ -97,17 +188,17 @@ export default function EntriesFeed({
             hey {firstName}
             <span className="text-brand">.</span>
           </h1>
-          {initialEntries.length > 0 && (
+          {allEntries.length > 0 && (
             <p className="shrink-0 text-xs font-medium tabular-nums text-ink-3">
-              {initialEntries.length}{" "}
-              {initialEntries.length === 1 ? "drop" : "drops"}
+              {allEntries.length}{" "}
+              {allEntries.length === 1 ? "drop" : "drops"}
             </p>
           )}
         </div>
         <div className="mt-6 h-px bg-line" />
       </header>
 
-      {initialEntries.length === 0 ? (
+      {allEntries.length === 0 ? (
         /* Empty state */
         <div className="flex flex-col items-center pb-10 pt-16 text-center">
           <h2 className="font-display text-[26px] leading-tight text-ink">
@@ -156,10 +247,31 @@ export default function EntriesFeed({
         ))
       )}
 
+      {allEntries.length > 0 && (
+        <div className="mt-10 flex flex-col items-center gap-2">
+          {loadedAll ? (
+            <p className="text-xs font-medium text-ink-3">
+              that&apos;s every drop — nothing older.
+            </p>
+          ) : (
+            <button
+              onClick={loadOlder}
+              disabled={loadingOlder}
+              className="flex items-center gap-2 rounded-full border border-line bg-white px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-paper disabled:opacity-60"
+            >
+              {loadingOlder && <Loader2 size={16} className="animate-spin" />}
+              {loadingOlder ? "Loading…" : "View Older Drops"}
+            </button>
+          )}
+        </div>
+      )}
+
       <EntrySheet
         entry={selectedEntry}
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
       />
     </main>
   );

@@ -8,6 +8,7 @@
   --color-ink-3: #8c8c8c;
   --color-brand: #7f77dd;
   --color-success: #1d9e75;
+  --color-danger: #dc2626;
   --color-caramel: #ba7517;
   --color-hairline: #f1f5f9;
   --color-line: #e2e8f0;
@@ -21,4 +22,11 @@
 body {
   background: var(--color-paper);
   color: var(--color-ink);
+}
+
+/* Vaul injects a 200%-tall ::after below bottom drawers for its rubber-band
+   background bleed. Inside our overflow-y-auto sheet it becomes scrollable
+   overflow, so disable it — the sheet has its own solid background. */
+[data-vaul-drawer][data-vaul-drawer-direction="bottom"]::after {
+  display: none;
 }

@@ -3,12 +3,14 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import EntryCard from "./entry-card";
 import EntrySheet from "./entry-sheet";
 import InputBar from "./input-bar";
 import RetrievalResult from "./retrieval-result";
 import { askMind } from "@/actions/search";
-import { Entry, RetrievalAnswer } from "@/types";
+import { updateEntry, deleteEntry } from "@/actions/entries";
+import { Entry, EntryEditData, RetrievalAnswer } from "@/types";
 
 interface SearchScreenProps {
   allEntries: Entry[];
@@ -22,6 +24,62 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
   const [aiResponse, setAiResponse] = useState<RetrievalAnswer | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  const handleDelete = async (id: string) => {
+    const { ok, error } = await deleteEntry(id);
+
+    if (!ok) {
+      toast.error(error || "Failed to delete entry");
+      return;
+    }
+
+    setSheetOpen(false);
+    setSelectedEntry(null);
+    toast.success("Entry deleted");
+    router.refresh();
+  };
+
+  const handleEdit = async (id: string, data: EntryEditData) => {
+    const { ok, error } = await updateEntry(id, data);
+
+    if (!ok) {
+      toast.error(error || "Failed to edit entry");
+      return;
+    }
+
+    const fallbackCategory = {
+      id: data.category.toLowerCase(),
+      user_id: "",
+      name: data.category,
+      is_default: true,
+    };
+
+    setSelectedEntry((prev) =>
+      prev
+        ? {
+            ...prev,
+            raw_text: data.raw_text,
+            summary: data.summary,
+            amount: data.amount ?? prev.amount,
+            currency: data.currency ?? prev.currency,
+            tags: data.tags,
+            category:
+              prev.category?.name?.toLowerCase() === data.category.toLowerCase()
+                ? prev.category
+                : fallbackCategory,
+            entities: data.entities.map((e, i) => ({
+              id: `${prev.id}-${i}`,
+              user_id: "",
+              name: e.name,
+              type: e.type,
+            })),
+          }
+        : prev,
+    );
+
+    toast.success("Entry updated");
+    router.refresh();
+  };
   const [, startTransition] = useTransition();
 
   const handleSearch = (text: string) => {
@@ -127,6 +185,8 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
         entry={selectedEntry}
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
       />
     </main>
   );
