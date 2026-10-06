@@ -141,7 +141,14 @@ export type ParsedQuery = {
 export type RetrievalAnswer = {
   answer: string;
   entry_ids: string[];
-  type: "sum" | "count" | "list" | "narrative";
+  followups: string[];
+  type: "answer" | "no_match";
+};
+
+/** Minimal prior-turn context sent back to the retrieval route on follow-ups. */
+export type RetrievalHistoryTurn = {
+  query: string;
+  answer: string;
 };
 
 export type DigestPeriod = "today" | "week" | "month";
