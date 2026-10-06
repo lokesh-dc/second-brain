@@ -2,8 +2,9 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { parseQuery, rewriteFollowUpForSearch } from "@/lib/ai/query-parser";
+import { getEntriesByIds } from "@/lib/ai/hybrid-search";
 import { generateRetrievalAnswer } from "@/lib/ai/retrieval";
-import { AskHistoryTurn, RetrievalAnswer } from "@/types";
+import { AskHistoryTurn, Entry, RetrievalAnswer } from "@/types";
 
 export async function askMind(
   question: string,
@@ -39,4 +40,18 @@ export async function askMind(
     priorEntryIds,
     originalQuery: trimmed,
   });
+}
+
+/**
+ * Re-fetch thread entries by id (RLS-scoped to the signed-in user) so a
+ * rehydrated thread resolves against fresh rows. Entries deleted since are
+ * simply absent from the result.
+ */
+export async function fetchEntriesByIds(ids: string[]): Promise<Entry[]> {
+  const sb = await createClient();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  if (!user) return [];
+  return getEntriesByIds(sb, user.id, ids);
 }

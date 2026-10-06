@@ -9,7 +9,7 @@ import {
   useReducer,
   useRef,
 } from "react";
-import { askMind } from "@/actions/search";
+import { askMind, fetchEntriesByIds } from "@/actions/search";
 import {
   AskHistoryTurn,
   Entry,
@@ -27,7 +27,9 @@ type ThreadAction =
       entries: Entry[];
     }
   | { type: "ASK_ERROR"; id: string }
-  | { type: "CLEAR" };
+  | { type: "CLEAR" }
+  | { type: "REHYDRATE"; turns: ThreadTurn[] }
+  | { type: "RECONCILE"; fresh: Entry[]; fetchedIds: Set<string> };
 
 function threadReducer(state: ThreadTurn[], action: ThreadAction): ThreadTurn[] {
   switch (action.type) {
@@ -70,6 +72,22 @@ function threadReducer(state: ThreadTurn[], action: ThreadAction): ThreadTurn[] 
       );
     case "CLEAR":
       return [];
+    case "REHYDRATE":
+      return action.turns;
+    case "RECONCILE": {
+      // Ids covered by the re-fetch are authoritative: a cited id missing
+      // from fresh rows was deleted since — drop it from sources. Ids the
+      // fetch did not cover (e.g. newer turns) keep their resolution.
+      const byId = new Map(action.fresh.map((e) => [e.id, e]));
+      return state.map((t) => ({
+        ...t,
+        entries: t.entryIds.flatMap((id) =>
+          action.fetchedIds.has(id)
+            ? (byId.get(id) ?? [])
+            : (t.entries.find((e) => e.id === id) ?? []),
+        ),
+      }));
+    }
   }
 }
 
@@ -89,6 +107,68 @@ function toHistory(turns: ThreadTurn[]): AskHistoryTurn[] {
     .filter((t) => t.status === "done")
     .slice(-5)
     .map((t) => ({ query: t.query, answer: t.answer, entryIds: t.entryIds }));
+}
+
+const STORAGE_KEY = "mindrop:search-thread:v1";
+const MAX_STORED_TURNS = 30;
+
+function isValidTurn(t: unknown): t is ThreadTurn {
+  if (!t || typeof t !== "object") return false;
+  const o = t as Record<string, unknown>;
+  return (
+    typeof o.id === "string" &&
+    typeof o.query === "string" &&
+    typeof o.answer === "string" &&
+    Array.isArray(o.entryIds) &&
+    Array.isArray(o.entries) &&
+    Array.isArray(o.followups) &&
+    (o.type === "answer" || o.type === "no_match") &&
+    (o.status === "done" || o.status === "error" || o.status === "loading") &&
+    typeof o.createdAt === "number"
+  );
+}
+
+/** Read the persisted thread; never throws (private mode, quota, bad JSON). */
+function loadThread(): ThreadTurn[] {
+  try {
+    if (typeof window === "undefined") return [];
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(isValidTurn)
+      .slice(-MAX_STORED_TURNS)
+      .map((t) =>
+        // A turn caught mid-flight by a refresh can never complete —
+        // surface it as retryable instead of a stuck skeleton.
+        t.status === "loading" ? { ...t, status: "error" as const } : t,
+      );
+  } catch {
+    return [];
+  }
+}
+
+/** Persist the thread; never throws. */
+function saveThread(turns: ThreadTurn[]): void {
+  try {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(turns.slice(-MAX_STORED_TURNS)),
+    );
+  } catch {
+    // Storage full or unavailable — the thread just won't survive refresh.
+  }
+}
+
+function clearStoredThread(): void {
+  try {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Ignore — nothing to clear.
+  }
 }
 
 interface AskThreadContextValue {
@@ -119,6 +199,39 @@ export function SearchThreadProvider({
   const turnsRef = useRef(turns);
   useEffect(() => {
     turnsRef.current = turns;
+  }, [turns]);
+
+  const rehydratedRef = useRef(false);
+  const skipFirstSaveRef = useRef(true);
+
+  // Rehydrate once on mount (client-only effect: no SSR/hydration mismatch).
+  // Then re-fetch every cited id so sources resolve against fresh rows and
+  // entries deleted since simply disappear from sources.
+  useEffect(() => {
+    const stored = loadThread();
+    if (stored.length === 0) {
+      rehydratedRef.current = true;
+      return;
+    }
+    dispatch({ type: "REHYDRATE", turns: stored });
+    rehydratedRef.current = true;
+    const ids = [...new Set(stored.flatMap((t) => t.entryIds))].slice(0, 200);
+    if (ids.length === 0) return;
+    const fetchedIds = new Set(ids);
+    void fetchEntriesByIds(ids)
+      .then((fresh) => dispatch({ type: "RECONCILE", fresh, fetchedIds }))
+      .catch((err) => console.error("[search] thread reconcile failed:", err));
+  }, []);
+
+  // Persist on every change, except the initial mount render (which would
+  // overwrite the stored thread with [] before rehydration runs).
+  useEffect(() => {
+    if (!rehydratedRef.current) return;
+    if (skipFirstSaveRef.current) {
+      skipFirstSaveRef.current = false;
+      return;
+    }
+    saveThread(turns);
   }, [turns]);
 
   const cacheRef = useRef(new Map<string, Entry>());
@@ -190,6 +303,7 @@ export function SearchThreadProvider({
 
   const clear = useCallback(() => {
     dispatch({ type: "CLEAR" });
+    clearStoredThread();
     // TODO(phase-2): also delete persisted Supabase thread history once it exists.
   }, []);
 
