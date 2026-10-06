@@ -9,12 +9,14 @@ interface InputBarProps {
   onSubmit: (text: string) => void;
   isLoading?: boolean;
   forceSearchMode?: boolean;
+  placeholder?: string;
 }
 
 export default function InputBar({
   onSubmit,
   isLoading,
   forceSearchMode = false,
+  placeholder,
 }: InputBarProps) {
   const [text, setText] = useState("");
   const [isPickerVisible, setIsPickerVisible] = useState(false);
@@ -40,26 +42,43 @@ export default function InputBar({
       )}
 
       <div className="flex w-full items-center rounded-full border border-[#f1f5f9] bg-white px-2 py-1.5 shadow-md shadow-black/5">
-        <button
-          onClick={() =>
-            isSearchMode ? setIsSearchMode(false) : setIsPickerVisible(true)
-          }
-          className="grid h-10 w-10 shrink-0 place-items-center"
-          aria-label="Toggle mode"
-        >
-          {isSearchMode ? (
-            <X size={22} className="text-[#64748b]" />
-          ) : (
-            <LayoutGrid size={22} className="text-[#64748b]" />
-          )}
-        </button>
+        {forceSearchMode ? (
+          // Search thread input: X clears ONLY the typed text, and is
+          // hidden when the input is empty. It never touches results.
+          <span className="grid h-10 w-10 shrink-0 place-items-center">
+            {text.length > 0 && (
+              <button
+                onClick={() => setText("")}
+                className="grid h-10 w-10 place-items-center"
+                aria-label="Clear text"
+              >
+                <X size={22} className="text-[#64748b]" />
+              </button>
+            )}
+          </span>
+        ) : (
+          <button
+            onClick={() =>
+              isSearchMode ? setIsSearchMode(false) : setIsPickerVisible(true)
+            }
+            className="grid h-10 w-10 shrink-0 place-items-center"
+            aria-label="Toggle mode"
+          >
+            {isSearchMode ? (
+              <X size={22} className="text-[#64748b]" />
+            ) : (
+              <LayoutGrid size={22} className="text-[#64748b]" />
+            )}
+          </button>
+        )}
 
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSubmit()}
           placeholder={
-            isSearchMode ? "Ask your mind anything..." : "What's on your mind?"
+            placeholder ??
+            (isSearchMode ? "Ask your mind anything..." : "What's on your mind?")
           }
           className="h-10 min-w-0 flex-1 bg-transparent px-2 text-base outline-none placeholder:text-[#94a3b8]"
         />
@@ -84,10 +103,10 @@ export default function InputBar({
                 ? "bg-[#0f172a]"
                 : "bg-[#f1f5f9]"
           } disabled:opacity-70`}
-          aria-label={isSearchMode ? "Search" : "Log"}
+          aria-label={isSearchMode ? "Send" : "Log"}
         >
           {isSearchMode ? (
-            <Search size={18} className="text-white" />
+            <ArrowUp size={18} className="text-white" />
           ) : (
             <ArrowUp
               size={18}

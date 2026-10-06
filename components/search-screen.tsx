@@ -120,6 +120,16 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
           <ChevronLeft size={28} className="text-ink" />
         </button>
         <h1 className="font-display text-[28px]">Search</h1>
+        {/* Clears the whole thread. Only visible when a thread exists. */}
+        {aiResponse && (
+          <button
+            onClick={() => setAiResponse(null)}
+            aria-label="New search"
+            className="ml-auto rounded-full px-3 py-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-hairline hover:text-ink"
+          >
+            New search
+          </button>
+        )}
       </header>
 
       {/* Results: answer first, evidence below */}
