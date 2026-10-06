@@ -99,8 +99,7 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
       behavior: reduceMotion ? "auto" : "smooth",
       block: "end",
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turns.length, lastTurnKey]);
+  }, [lastTurnKey]);
 
   // Resolve each turn's cited ids against fresh entries first (so edits show
   // up), falling back to the snapshot stored with the turn. Ids missing from
