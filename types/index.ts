@@ -151,6 +151,11 @@ export type RetrievalHistoryTurn = {
   answer: string;
 };
 
+/** Thread history as passed from the client: answers plus cited entry ids. */
+export type AskHistoryTurn = RetrievalHistoryTurn & {
+  entryIds: string[];
+};
+
 export type ThreadTurnStatus = "loading" | "done" | "error";
 
 /** One question in a Search thread: its answer plus its own sources. */

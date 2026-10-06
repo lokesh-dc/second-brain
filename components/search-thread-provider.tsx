@@ -11,9 +11,9 @@ import {
 } from "react";
 import { askMind } from "@/actions/search";
 import {
+  AskHistoryTurn,
   Entry,
   RetrievalAnswer,
-  RetrievalHistoryTurn,
   ThreadTurn,
 } from "@/types";
 
@@ -84,11 +84,11 @@ function makeId(): string {
 }
 
 /** Last 5 completed turns as model context, oldest first. */
-function toHistory(turns: ThreadTurn[]): RetrievalHistoryTurn[] {
+function toHistory(turns: ThreadTurn[]): AskHistoryTurn[] {
   return turns
     .filter((t) => t.status === "done")
     .slice(-5)
-    .map((t) => ({ query: t.query, answer: t.answer }));
+    .map((t) => ({ query: t.query, answer: t.answer, entryIds: t.entryIds }));
 }
 
 interface AskThreadContextValue {
@@ -140,7 +140,7 @@ export function SearchThreadProvider({
     async (
       id: string,
       query: string,
-      history: RetrievalHistoryTurn[],
+      history: AskHistoryTurn[],
     ): Promise<void> => {
       try {
         const response = await askMind(query, history);

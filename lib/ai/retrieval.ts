@@ -6,7 +6,11 @@ import {
   RetrievalAnswer,
   RetrievalHistoryTurn,
 } from "@/types";
-import { hybridSearch, scheduleRetrievalLogging } from "./hybrid-search";
+import {
+  getEntriesByIds,
+  hybridSearch,
+  scheduleRetrievalLogging,
+} from "./hybrid-search";
 import { chatJSONLenient } from "./groq";
 
 export interface RetrievalOptions {
@@ -14,6 +18,10 @@ export interface RetrievalOptions {
   now?: Date;
   /** Previous turns of the current thread (query + answer), oldest first. */
   history?: RetrievalHistoryTurn[];
+  /** Entry ids cited by the previous turn — merged back into context. */
+  priorEntryIds?: string[];
+  /** What the user actually typed (may differ from the rewritten search). */
+  originalQuery?: string;
 }
 
 /** Shape of the raw JSON we expect back from the model (all fields unknown). */
@@ -220,13 +228,25 @@ export async function generateRetrievalAnswer(
 
   const entries = await hybridSearch(sb, parsed, userId);
 
-  if (entries.length === 0) {
+  // Follow-up support: union fresh matches with the previous turn's cited
+  // entries (deduped, new matches ranked first, capped). This keeps
+  // follow-ups like "only the comic" or "compare to last month" grounded
+  // even when the new query alone embeds or filters poorly.
+  let contextEntries = entries.slice(0, MAX_CONTEXT_ENTRIES);
+  if (opts.priorEntryIds && opts.priorEntryIds.length > 0) {
+    const seen = new Set(contextEntries.map((e) => e.id));
+    const prior = (await getEntriesByIds(sb, userId, opts.priorEntryIds)).filter(
+      (e) => !seen.has(e.id),
+    );
+    contextEntries = [...contextEntries, ...prior].slice(0, MAX_CONTEXT_ENTRIES);
+  }
+
+  if (contextEntries.length === 0) {
     return { answer: NO_MATCH_ANSWER, entry_ids: [], followups: [], type: "no_match" };
   }
 
-  const contextEntries = entries.slice(0, MAX_CONTEXT_ENTRIES);
   const prompt = buildPrompt(
-    parsed.rewritten_query,
+    opts.originalQuery?.trim() || parsed.rewritten_query,
     contextEntries,
     history,
     now,

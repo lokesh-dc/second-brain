@@ -78,6 +78,60 @@ function reciprocalRankFusion(
     .slice(0, 10);
 }
 
+/** Row shape of the structured entries query (join-heavy, no vector). */
+type StructuredRow = Entry & {
+  entry_entities?: Array<{ entity?: Entity }>;
+};
+
+/** Flatten the category join + entry_entities join into an Entry. */
+function normalizeStructuredRow(row: StructuredRow): Entry {
+  return {
+    ...row,
+    category: normalizeCategory(row.category),
+    entities: row.entry_entities
+      ?.map((ee) => ee.entity)
+      .filter((e): e is NonNullable<typeof e> => Boolean(e)),
+  };
+}
+
+const STRUCTURED_SELECT = `id, user_id, raw_text, summary, amount, currency, timestamp, tags,
+  category:categories(id, user_id, name, icon, is_default),
+  entry_entities(entity:entities(id, user_id, name, type))`;
+
+/**
+ * Fetch specific entries by id, scoped to the signed-in user (RLS-safe:
+ * every lookup carries `eq("user_id", userId)`). Used to pull the previous
+ * turn's cited entries back into follow-up context. Order of `ids` kept;
+ * unknown/deleted ids are dropped.
+ */
+export async function getEntriesByIds(
+  sb: SupabaseClient,
+  userId: string,
+  ids: string[],
+): Promise<Entry[]> {
+  const unique = [...new Set(ids)].filter(Boolean).slice(0, 20);
+  if (unique.length === 0) return [];
+
+  const { data, error } = await sb
+    .from("entries")
+    .select(STRUCTURED_SELECT)
+    .eq("user_id", userId)
+    .in("id", unique);
+
+  if (error || !data) {
+    console.error("[hybridSearch] getEntriesByIds error:", error);
+    return [];
+  }
+
+  const byId = new Map(
+    (data as unknown as StructuredRow[]).map((row) => [
+      row.id,
+      normalizeStructuredRow(row),
+    ]),
+  );
+  return unique.flatMap((id) => byId.get(id) ?? []);
+}
+
 /**
  * Diagnostic instrumentation: bump retrieval_count / last_retrieved_at for
  * entries that were actually surfaced in an answer.
@@ -207,16 +261,8 @@ export async function hybridSearch(
 
   // Normalize the nested join into a flat entities array
   const structuredEntries: Entry[] = (
-    (structuredRes.data ?? []) as unknown as Array<
-      Entry & { entry_entities?: Array<{ entity?: Entity }> }
-    >
-  ).map((row) => ({
-    ...row,
-    category: normalizeCategory(row.category),
-    entities: row.entry_entities
-      ?.map((ee) => ee.entity)
-      .filter((e): e is NonNullable<typeof e> => Boolean(e)),
-  }));
+    (structuredRes.data ?? []) as unknown as StructuredRow[]
+  ).map(normalizeStructuredRow);
 
   const filteredStructured = parsed.entity_filter
     ? structuredEntries.filter((e) =>
