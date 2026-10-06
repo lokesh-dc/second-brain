@@ -191,7 +191,14 @@ export default function SearchScreen({ allEntries }: SearchScreenProps) {
         className="fixed inset-x-4 z-50 mx-auto max-w-lg md:inset-x-auto md:left-[var(--sidebar-w)] md:right-0 md:mx-auto md:max-w-4xl md:px-8"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
       >
-        <InputBar onSubmit={handleSearch} isLoading={isLoading} forceSearchMode />
+        <InputBar
+          onSubmit={handleSearch}
+          isLoading={isLoading}
+          forceSearchMode
+          placeholder={
+            aiResponse ? "Ask a follow-up..." : "Ask your mind anything..."
+          }
+        />
       </div>
 
       <EntrySheet
