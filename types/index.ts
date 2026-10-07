@@ -141,7 +141,35 @@ export type ParsedQuery = {
 export type RetrievalAnswer = {
   answer: string;
   entry_ids: string[];
-  type: "sum" | "count" | "list" | "narrative";
+  followups: string[];
+  type: "answer" | "no_match";
+};
+
+/** Minimal prior-turn context sent back to the retrieval route on follow-ups. */
+export type RetrievalHistoryTurn = {
+  query: string;
+  answer: string;
+};
+
+/** Thread history as passed from the client: answers plus cited entry ids. */
+export type AskHistoryTurn = RetrievalHistoryTurn & {
+  entryIds: string[];
+};
+
+export type ThreadTurnStatus = "loading" | "done" | "error";
+
+/** One question in a Search thread: its answer plus its own sources. */
+export type ThreadTurn = {
+  id: string;
+  query: string;
+  answer: string;
+  entryIds: string[];
+  /** Resolved entries for rendering (snapshot; reconciled with fresh data). */
+  entries: Entry[];
+  followups: string[];
+  type: "answer" | "no_match";
+  status: ThreadTurnStatus;
+  createdAt: number;
 };
 
 export type DigestPeriod = "today" | "week" | "month";

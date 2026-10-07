@@ -1,5 +1,6 @@
 import DesktopSidebar from "@/components/desktop-sidebar";
 import TabDock from "@/components/tab-dock";
+import { SearchThreadProvider } from "@/components/search-thread-provider";
 import { CaptureFab, CaptureProvider } from "@/components/capture";
 
 export default function AppLayout({

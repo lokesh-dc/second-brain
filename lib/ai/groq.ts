@@ -67,6 +67,23 @@ export async function chatJSON<T>(
   return JSON.parse(extractJSON(raw)) as T;
 }
 
+/**
+ * Same as chatJSON but returns the raw model output alongside the parsed
+ * value, so callers can log the raw text when parsing fails.
+ * Returns `data: null` instead of throwing on invalid JSON.
+ */
+export async function chatJSONLenient<T>(
+  messages: ChatMessage[],
+  opts: ChatOptions = {},
+): Promise<{ data: T | null; raw: string }> {
+  const raw = await callGroq(messages, { ...opts, jsonMode: true });
+  try {
+    return { data: JSON.parse(extractJSON(raw)) as T, raw };
+  } catch {
+    return { data: null, raw };
+  }
+}
+
 export async function chatText(
   messages: ChatMessage[],
   opts: ChatOptions = {},

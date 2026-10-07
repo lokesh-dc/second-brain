@@ -2,8 +2,7 @@ import "server-only";
 import { chatJSON } from "./groq";
 import { ParsedQuery, TimeFilter } from "@/types";
 
-function resolveTimeFilter(raw: TimeFilter): TimeFilter {
-  if (!raw.range) return raw;
+function resolveTimeFilter(raw: TimeFilter): TimeFilter {  if (!raw.range) return raw;
 
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -55,8 +54,7 @@ function resolveTimeFilter(raw: TimeFilter): TimeFilter {
   }
 }
 
-export async function parseQuery(input: string): Promise<ParsedQuery> {
-  const systemPrompt = `You parse user queries for a personal life-logging app.
+export async function parseQuery(input: string): Promise<ParsedQuery> {  const systemPrompt = `You parse user queries for a personal life-logging app.
 Return ONLY valid JSON. No explanation. No markdown.
 
 Schema:
@@ -106,4 +104,33 @@ Output:`;
       aggregation: null,
     };
   }
+}
+
+const LEADING_QUESTION_WORDS =
+  /^(what|which|who|whom|when|where|why|how|show|find|list|give|tell)( me)?\s+(did|do|does|was|were|is|are|have|has|had|can|could|would|should)\s+(i|my|we|our)?\s*/i;
+
+/**
+ * Cheap rule-based rewrite for follow-ups: a bare "compare to last month"
+ * embeds poorly, so short follow-ups inherit the previous question's main
+ * subject (e.g. "what did I read today" + "which one was longer" ->
+ * "read today which one was longer"). Longer queries are already standalone.
+ *
+ * Limitation: this is a heuristic, not a real coreference rewrite — a cheap
+ * model call that rewrites the follow-up into a standalone query would be
+ * more robust (left as a follow-up).
+ */
+export function rewriteFollowUpForSearch(
+  query: string,
+  priorQueries: string[],
+): string {
+  const q = query.trim();
+  if (priorQueries.length === 0 || q.split(/\s+/).length > 6) return query;
+  const last = priorQueries[priorQueries.length - 1]
+    .replace(/\?+\s*$/, "")
+    .trim();
+  if (!last) return query;
+  const subject = last.replace(LEADING_QUESTION_WORDS, "").trim();
+  const anchor = subject.length >= 3 ? subject : last;
+  if (q.toLowerCase().includes(anchor.slice(0, 12).toLowerCase())) return query;
+  return `${anchor} ${q}`.slice(0, 300);
 }
