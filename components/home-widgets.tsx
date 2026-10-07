@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowUpRight,
@@ -11,7 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { getCategoryConfig, formatCategoryName } from "@/constants/categories";
-import { formatEntityName } from "@/constants/entities";
+import { EntityNameButton } from "./entity-link";
 import type { HomeWidgets } from "@/actions/home";
 
 const EASE = [0.215, 0.61, 0.355, 1] as const;
@@ -53,6 +54,7 @@ export default function HomeWidgets({
   ];
 
   const isRail = layout === "rail";
+  const router = useRouter();
 
   return (
     <section aria-label="Overview" className="mt-6 flex flex-col gap-3">
@@ -60,9 +62,17 @@ export default function HomeWidgets({
       <div className={isRail ? "flex flex-col gap-3" : "grid gap-3 md:grid-cols-3"}>
         <motion.div {...anim(0)} className={isRail ? undefined : "md:col-span-2"}>
           {widgets.briefing ? (
-            <Link
-              href="/insights"
-              className="group block h-full rounded-3xl bg-ink p-5 text-white transition-transform hover:scale-[1.005] active:scale-[0.995] md:p-6"
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => router.push("/insights")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  router.push("/insights");
+                }
+              }}
+              className="group block h-full cursor-pointer rounded-3xl bg-ink p-5 text-white transition-transform hover:scale-[1.005] active:scale-[0.995] md:p-6"
             >
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-white/70">
@@ -86,12 +96,16 @@ export default function HomeWidgets({
                   )}
                   {widgets.briefing.topEntity && (
                     <span className="rounded-full bg-white/10 px-3 py-1.5">
-                      Top entity · {formatEntityName(widgets.briefing.topEntity.name)}
+                      Top entity ·{" "}
+                      <EntityNameButton
+                        name={widgets.briefing.topEntity.name}
+                        className="font-bold underline-offset-2 hover:underline"
+                      />
                     </span>
                   )}
                 </div>
               )}
-            </Link>
+            </div>
           ) : (
             <Link
               href="/insights"

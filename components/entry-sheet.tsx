@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -239,6 +240,7 @@ function EntryContent({
   const categoryName = formatCategoryName(entry.category?.name);
   const config = getCategoryConfig(categoryName);
   const Icon = config.icon;
+  const router = useRouter();
 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -373,12 +375,14 @@ function EntryContent({
               </h3>
               <div className="flex flex-wrap gap-2">
                 {entry.entities.map((e) => (
-                  <span
+                  <button
                     key={e.id}
-                    className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-semibold text-ink-2"
+                    type="button"
+                    onClick={() => router.push(`/entities/${e.id}`)}
+                    className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-semibold text-ink-2 transition-colors hover:border-brand hover:text-ink"
                   >
                     {formatEntityName(e.name)}
-                  </span>
+                  </button>
                 ))}
               </div>
             </section>

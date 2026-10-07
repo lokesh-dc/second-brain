@@ -3,11 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { ENTRIES_PAGE_SIZE } from "@/constants/entries";
 import { Entry } from "@/types";
 
-const ENTRY_SELECT = `id, user_id, raw_text, summary, amount, currency, timestamp, tags,
+export const ENTRY_SELECT = `id, user_id, raw_text, summary, amount, currency, timestamp, tags,
   category:categories(id, name, icon, is_default),
   entry_entities(entity:entities(id, name, type))`;
 
-type RawEntry = Entry & {
+export type RawEntry = Entry & {
   entry_entities?: Array<{
     entity?: NonNullable<Entry["entities"]>[number];
   }>;
