@@ -138,11 +138,19 @@ export type ParsedQuery = {
   aggregation: "sum" | "count" | "list" | null;
 };
 
+export type AnswerBreakdownItem = {
+  label: string;
+  amount: number;
+  currency: string;
+};
+
 export type RetrievalAnswer = {
   answer: string;
   entry_ids: string[];
   followups: string[];
   type: "answer" | "no_match";
+  /** Per-tag/category split for money questions — rendered as a table. */
+  breakdown?: AnswerBreakdownItem[] | null;
 };
 
 /** Minimal prior-turn context sent back to the retrieval route on follow-ups. */
@@ -168,6 +176,7 @@ export type ThreadTurn = {
   entries: Entry[];
   followups: string[];
   type: "answer" | "no_match";
+  breakdown?: AnswerBreakdownItem[] | null;
   status: ThreadTurnStatus;
   createdAt: number;
 };

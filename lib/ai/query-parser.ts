@@ -89,7 +89,8 @@ Output:`;
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      { temperature: 0, maxTokens: 300 },
+      // Headroom for reasoning models (see retrieval.ts).
+      { temperature: 0, maxTokens: 600 },
     );
     parsed.time_filter = resolveTimeFilter(parsed.time_filter);
     return parsed;

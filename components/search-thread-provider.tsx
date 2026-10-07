@@ -43,6 +43,7 @@ function threadReducer(state: ThreadTurn[], action: ThreadAction): ThreadTurn[] 
           entryIds: [],
           entries: [],
           followups: [],
+          breakdown: null,
           type: "answer" as const,
           status: "loading" as const,
           createdAt: action.createdAt,
@@ -62,6 +63,7 @@ function threadReducer(state: ThreadTurn[], action: ThreadAction): ThreadTurn[] 
               entryIds: action.answer.entry_ids,
               entries: action.entries,
               followups: action.answer.followups,
+              breakdown: action.answer.breakdown ?? null,
               type: action.answer.type,
             }
           : t,

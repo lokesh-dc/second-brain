@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  AnswerBreakdownItem,
   Entry,
   ParsedQuery,
   RetrievalAnswer,
@@ -30,6 +31,7 @@ interface RetrievalModelOutput {
   entry_ids: unknown;
   followups: unknown;
   type: unknown;
+  breakdown: unknown;
 }
 
 const MAX_CONTEXT_ENTRIES = 20;
@@ -142,13 +144,39 @@ function sanitizeModelOutput(
 
   const type = out.type === "answer" || out.type === "no_match" ? out.type : null;
   if (type === "no_match") followups = [];
+
+  let breakdown: AnswerBreakdownItem[] | null = null;
+  if (Array.isArray(out.breakdown)) {
+    const rows: AnswerBreakdownItem[] = [];
+    for (const r of out.breakdown) {
+      if (!r || typeof r !== "object") continue;
+      const o = r as Record<string, unknown>;
+      const label =
+        typeof o.label === "string" ? o.label.trim().slice(0, 40) : "";
+      const amount =
+        typeof o.amount === "number" && Number.isFinite(o.amount)
+          ? o.amount
+          : null;
+      const currency =
+        typeof o.currency === "string" && o.currency.trim()
+          ? o.currency.trim().toUpperCase()
+          : "INR";
+      if (!label || amount == null) continue;
+      rows.push({ label, amount, currency });
+      if (rows.length >= 12) break;
+    }
+    if (rows.length > 0) breakdown = rows;
+  }
+
   // Model claimed no match: never surface sources or chips for it.
-  if (type === "no_match") return { answer, entry_ids: [], followups, type };
+  if (type === "no_match")
+    return { answer, entry_ids: [], followups, type, breakdown: null };
 
   return {
     answer,
     entry_ids,
     followups,
+    breakdown,
     type: type ?? (entry_ids.length > 0 ? "answer" : "no_match"),
   };
 }
@@ -206,10 +234,11 @@ Rules:
 - If the entries do not actually answer the question, say so plainly in one sentence and suggest a better query. Do not pad with weak matches.
 - One to three short sentences, unless the user asked for detail.
 - Never invent entries, amounts, or dates.
+- If the user asked for a per-tag or per-category split ("by tag", "breakdown", "split"), put EVERY line item ONLY in "breakdown" as {"label","amount","currency"} with exact amounts from the entries — never write the list into the answer prose. Keep "answer" to one or two sentences leading with the total. Otherwise set "breakdown" to null.
 - Suggest 0-3 follow-ups the user could type next. Each must be under 5 words, phrased as something the user could type (e.g. "This week only", "Show all reading"), and answerable from their data. Empty array when there is no real match.
 
 Return ONLY this JSON object, no markdown, no code fences:
-{"answer":"string","entry_ids":["uuid, most relevant first"],"followups":["..."],"type":"answer|no_match"}
+{"answer":"string","breakdown":[{"label":"string","amount":number,"currency":"string"} or null],"entry_ids":["uuid, most relevant first"],"followups":["..."],"type":"answer|no_match"}
 
 - entry_ids must be a subset of the ids listed above.
 - type is "no_match" when the entries do not answer the question (one plain sentence + a better query suggestion, followups []).`;
@@ -255,7 +284,10 @@ export async function generateRetrievalAnswer(
   try {
     const { data, raw } = await chatJSONLenient<RetrievalModelOutput>(
       [{ role: "user", content: prompt }],
-      { temperature: 0.2, maxTokens: 400 },
+      // Reasoning models (gpt-oss) spend completion tokens thinking —
+      // a small budget 400s with "max completion tokens reached before
+      // generating a valid document". Keep headroom for thinking + JSON.
+      { temperature: 0.2, maxTokens: 1200 },
     );
 
     if (!data) {
@@ -279,11 +311,14 @@ export async function generateRetrievalAnswer(
     return result;
   } catch (err) {
     console.error("[ai] retrieval answer failed:", err);
+    // Degrade to the matched entries instead of "no match" — the search
+    // did find drops; only the answer wording failed.
+    const ids = contextEntries.map((e) => e.id);
     return {
-      answer: NO_MATCH_ANSWER,
-      entry_ids: [],
+      answer: `Found ${ids.length} matching ${ids.length === 1 ? "drop" : "drops"} — here ${ids.length === 1 ? "it is" : "they are"}.`,
+      entry_ids: ids,
       followups: [],
-      type: "no_match",
+      type: "answer",
     };
   }
 }

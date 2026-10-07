@@ -8,12 +8,14 @@ export default function AppLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <CaptureProvider>
-      <div className="min-h-dvh bg-paper">
-        <DesktopSidebar />
-        <div className="md:ml-[var(--sidebar-w)]">{children}</div>
-        <TabDock />
-        <CaptureFab />
-      </div>
+      <SearchThreadProvider>
+        <div className="min-h-dvh bg-paper">
+          <DesktopSidebar />
+          <div className="md:ml-[var(--sidebar-w)]">{children}</div>
+          <TabDock />
+          <CaptureFab />
+        </div>
+      </SearchThreadProvider>
     </CaptureProvider>
   );
 }

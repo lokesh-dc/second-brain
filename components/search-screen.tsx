@@ -37,7 +37,7 @@ function TurnBlock({
       {turn.status === "error" && <AnswerErrorCard onRetry={onRetry} />}
       {turn.status === "done" && (
         <>
-          <AnswerCard answer={turn.answer} />
+          <AnswerCard answer={turn.answer} breakdown={turn.breakdown} />
           {sourceCount > 0 && (
             <div className="flex justify-end">
               <button
