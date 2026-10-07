@@ -43,11 +43,11 @@ function TurnBlock({
               <button
                 type="button"
                 onClick={onViewSources}
-                aria-label={`View ${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`}
+                aria-label={`View ${sourceCount} ${sourceCount === 1 ? "drop" : "drops"}`}
                 className="flex items-center gap-0.5 px-1 py-1 text-[13px] font-medium text-ink-3 transition-colors hover:text-ink"
               >
                 <span>
-                  {sourceCount} {sourceCount === 1 ? "Source" : "Sources"}
+                  {sourceCount} {sourceCount === 1 ? "Drop" : "Drops"}
                 </span>
                 <ChevronRight size={16} aria-hidden="true" />
               </button>

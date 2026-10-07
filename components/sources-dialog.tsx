@@ -43,7 +43,7 @@ export default function SourcesDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={title ?? "Sources"}>
+    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={title ?? "Drops"}>
       <div
         aria-hidden="true"
         onClick={onClose}
@@ -54,12 +54,12 @@ export default function SourcesDialog({
         <div className="mx-auto mb-4 mt-2 h-1 w-10 rounded-full bg-line" />
         <div className="mb-3 flex items-center">
           <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
-            {title ?? `${entries.length} ${entries.length === 1 ? "Source" : "Sources"}`}
+            {title ?? `${entries.length} ${entries.length === 1 ? "Drop" : "Drops"}`}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close sources"
+            aria-label="Close drops"
             className="ml-auto grid h-8 w-8 place-items-center rounded-full text-ink-3 transition-colors hover:bg-hairline hover:text-ink"
           >
             <X size={18} />
