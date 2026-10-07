@@ -2,7 +2,8 @@
 
 import { format } from "date-fns";
 import { Entry } from "@/types";
-import { getCategoryConfig } from "@/constants/categories";
+import { formatCategoryName, getCategoryConfig } from "@/constants/categories";
+import { formatEntityName } from "@/constants/entities";
 
 interface EntryCardProps {
   entry: Entry;
@@ -10,7 +11,7 @@ interface EntryCardProps {
 }
 
 export default function EntryCard({ entry, onPress }: EntryCardProps) {
-  const categoryName = entry.category?.name || "Misc";
+  const categoryName = formatCategoryName(entry.category?.name);
   const config = getCategoryConfig(categoryName);
   const Icon = config.icon;
 
@@ -63,11 +64,10 @@ export default function EntryCard({ entry, onPress }: EntryCardProps) {
               key={e.id}
               className="rounded-md border border-line bg-paper px-1.5 py-0.5 text-[11px] font-medium text-ink-2"
             >
-              {e.name}
+              {formatEntityName(e.name)}
             </span>
           ))}
         </div>
-      )}
-    </button>
+      )}    </button>
   );
 }

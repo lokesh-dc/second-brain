@@ -10,6 +10,7 @@ import { DigestCategoryRow } from "@/components/digest/category-row";
 import { DigestCalloutCard } from "@/components/digest/callout-card";
 import { DigestEmptyState } from "@/components/digest/empty-state";
 import { DigestSkeleton } from "@/components/digest/digest-skeleton";
+import { formatEntityName } from "@/constants/entities";
 
 interface View {
   period: DigestPeriod;
@@ -114,7 +115,7 @@ export default function InsightsScreen() {
               {raw.topEntity && (
                 <DigestCalloutCard
                   title="Most Logged"
-                  value={raw.topEntity.name}
+                  value={formatEntityName(raw.topEntity.name)}
                   subtitle={`${raw.topEntity.count} entries`}
                   icon={Users}
                   color="#7F77DD"

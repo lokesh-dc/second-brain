@@ -10,7 +10,8 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import { getCategoryConfig } from "@/constants/categories";
+import { getCategoryConfig, formatCategoryName } from "@/constants/categories";
+import { formatEntityName } from "@/constants/entities";
 import type { HomeWidgets } from "@/actions/home";
 
 const EASE = [0.215, 0.61, 0.355, 1] as const;
@@ -85,7 +86,7 @@ export default function HomeWidgets({
                   )}
                   {widgets.briefing.topEntity && (
                     <span className="rounded-full bg-white/10 px-3 py-1.5">
-                      Top entity · {widgets.briefing.topEntity.name}
+                      Top entity · {formatEntityName(widgets.briefing.topEntity.name)}
                     </span>
                   )}
                 </div>
@@ -176,7 +177,7 @@ export default function HomeWidgets({
                 <TopIcon size={15} color={topConfig!.accent} />
               </span>
               <span className="truncate">
-                {widgets.topCategory.name}
+                {formatCategoryName(widgets.topCategory.name)}
                 <span className="ml-1.5 align-middle font-sans text-xs font-semibold tabular-nums text-ink-3">
                   ×{widgets.topCategory.count}
                 </span>

@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { format, isToday, isYesterday } from "date-fns";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import EntryCard from "./entry-card";
 import EntrySheet from "./entry-sheet";
 import HomeWidgets from "./home-widgets";
+import { useCapture } from "./capture";
 import type { HomeWidgets as HomeWidgetsData } from "@/actions/home";
 import { updateEntry, deleteEntry, loadMoreEntries } from "@/actions/entries";
 import { ENTRIES_PAGE_SIZE } from "@/constants/entries";
@@ -55,6 +56,7 @@ export default function EntriesFeed({
   const [loadedAll, setLoadedAll] = useState(false);
   const reduceMotion = useReducedMotion();
   const router = useRouter();
+  const { open: openCapture } = useCapture();
 
   const allEntries = useMemo(
     () => [...initialEntries, ...olderEntries],
@@ -226,6 +228,16 @@ export default function EntriesFeed({
           <p className="mt-3 max-w-[30ch] text-sm leading-relaxed text-pretty text-ink-2">
             Type anything below — an expense, an idea, a book you finished.
             It lands here.
+          </p>
+
+          <button
+            onClick={openCapture}
+            className="mt-8 flex items-center gap-2 rounded-full bg-ink px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-black/20 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Plus size={16} /> Drop your first thought
+          </button>
+          <p className="mt-3 hidden text-xs font-medium text-ink-3 md:block">
+            tip: press N anywhere to capture
           </p>
 
           <div aria-hidden="true" className="mt-14 flex w-full flex-col items-center gap-4">

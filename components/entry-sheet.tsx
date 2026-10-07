@@ -12,7 +12,8 @@ import {
 import { toast } from "sonner";
 import { Drawer } from "vaul";
 import { Entry, EntryEditData } from "@/types";
-import { getCategoryConfig, ALL_CATEGORY_NAMES } from "@/constants/categories";
+import { getCategoryConfig, formatCategoryName, ALL_CATEGORY_NAMES } from "@/constants/categories";
+import { formatEntityName } from "@/constants/entities";
 import { useIsDesktop } from "@/hooks/use-media-query";
 
 interface EntrySheetProps {
@@ -235,7 +236,7 @@ function EntryContent({
   onEdit: (id: string, data: EntryEditData) => void | Promise<void>;
   categories: { id: string; name: string }[];
 }) {
-  const categoryName = entry.category?.name || "Misc";
+  const categoryName = formatCategoryName(entry.category?.name);
   const config = getCategoryConfig(categoryName);
   const Icon = config.icon;
 
@@ -376,7 +377,7 @@ function EntryContent({
                     key={e.id}
                     className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-semibold text-ink-2"
                   >
-                    {e.name}
+                    {formatEntityName(e.name)}
                   </span>
                 ))}
               </div>
