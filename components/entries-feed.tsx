@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { format, isToday, isYesterday } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import EntryCard from "./entry-card";
 import EntrySheet from "./entry-sheet";
+import HomeWidgets from "./home-widgets";
+import type { HomeWidgets as HomeWidgetsData } from "@/actions/home";
 import { updateEntry, deleteEntry, loadMoreEntries } from "@/actions/entries";
 import { ENTRIES_PAGE_SIZE } from "@/constants/entries";
 import { Entry, EntryEditData } from "@/types";
@@ -16,6 +19,7 @@ interface EntriesFeedProps {
   firstName: string;
   dateLabel: string;
   initialEntries: Entry[];
+  widgets?: HomeWidgetsData | null;
 }
 
 const EASE = [0.215, 0.61, 0.355, 1] as const;
@@ -42,6 +46,7 @@ export default function EntriesFeed({
   firstName,
   dateLabel,
   initialEntries,
+  widgets,
 }: EntriesFeedProps) {
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -177,26 +182,40 @@ export default function EntriesFeed({
   });
 
   return (
-    <main className="mx-auto max-w-lg px-5 pb-48 pt-8 md:max-w-4xl md:px-8 md:pb-16">
+    <main className="mx-auto max-w-lg px-5 pb-48 pt-8 md:max-w-4xl md:px-8 md:pb-16 xl:max-w-6xl">
       {/* Masthead */}
       <header>
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-3">
           {dateLabel}
         </p>
-        <div className="mt-2 flex items-baseline justify-between gap-4">
-          <h1 className="font-display text-[32px] leading-none tracking-tight text-ink [text-wrap:balance]">
+        <div className="mt-2 flex items-center justify-between gap-4">
+          <h1 className="font-display text-[32px] leading-none tracking-tight text-ink [text-wrap:balance] xl:text-[40px]">
             hey {firstName}
             <span className="text-brand">.</span>
           </h1>
-          {allEntries.length > 0 && (
-            <p className="shrink-0 text-xs font-medium tabular-nums text-ink-3">
-              {allEntries.length}{" "}
-              {allEntries.length === 1 ? "drop" : "drops"}
-            </p>
-          )}
+          <div className="flex shrink-0 items-center gap-3">
+            {((widgets?.totalDrops ?? allEntries.length) > 0) && (
+              <p className="text-xs font-medium tabular-nums text-ink-3">
+                {(widgets?.totalDrops ?? allEntries.length)}{" "}
+                {(widgets?.totalDrops ?? allEntries.length) === 1 ? "drop" : "drops"}
+              </p>
+            )}
+            <Link
+              href="/search"
+              className="hidden items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98] md:flex"
+            >
+              <Search size={14} /> Ask your mind
+            </Link>
+          </div>
         </div>
         <div className="mt-6 h-px bg-line" />
       </header>
+
+      {widgets && (
+        <div className="xl:hidden">
+          <HomeWidgets widgets={widgets} />
+        </div>
+      )}
 
       {allEntries.length === 0 ? (
         /* Empty state */
@@ -227,41 +246,63 @@ export default function EntriesFeed({
           </div>
         </div>
       ) : (
-        groups.map((group) => (
-          <section key={group.key} className="pt-5">
-            {/* Sticky day header */}
-            <div className="sticky top-0 z-10 -mx-5 bg-paper/85 px-5 py-2.5 backdrop-blur-sm md:-mx-8 md:px-8">
+        <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start xl:gap-8">
+          <div className="min-w-0">
+            <div className="mt-8 flex items-baseline justify-between xl:mt-6">
               <h2 className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink-3">
-                {group.label}
+                Recent drops
               </h2>
+              <span className="text-xs font-medium tabular-nums text-ink-3">
+                newest first
+              </span>
             </div>
+            {groups.map((group) => (
+              <section key={group.key} className="pt-5">
+                {/* Sticky day header */}
+                <div className="sticky top-0 z-10 -mx-5 bg-paper/85 px-5 py-2.5 backdrop-blur-sm md:-mx-8 md:px-8">
+                  <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink-3">
+                    {group.label}
+                  </h3>
+                </div>
 
-            <div className="mt-2 flex flex-col gap-2.5 md:grid md:grid-cols-2 md:gap-3">
-              {group.entries.map((entry, i) => (
-                <motion.div key={entry.id} {...entryMotionProps(group.startIndex + i)}>
-                  <EntryCard entry={entry} onPress={() => openEntry(entry)} />
-                </motion.div>
-              ))}
-            </div>
-          </section>
-        ))
-      )}
+                <div className="mt-2 flex flex-col gap-2.5 md:grid md:grid-cols-2 md:gap-3">
+                  {group.entries.map((entry, i) => (
+                    <motion.div key={entry.id} {...entryMotionProps(group.startIndex + i)}>
+                      <EntryCard entry={entry} onPress={() => openEntry(entry)} />
+                    </motion.div>
+                  ))}
+                </div>
+              </section>
+            ))}
 
-      {allEntries.length > 0 && (
-        <div className="mt-10 flex flex-col items-center gap-2">
-          {loadedAll ? (
-            <p className="text-xs font-medium text-ink-3">
-              that&apos;s every drop — nothing older.
-            </p>
-          ) : (
-            <button
-              onClick={loadOlder}
-              disabled={loadingOlder}
-              className="flex items-center gap-2 rounded-full border border-line bg-white px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-paper disabled:opacity-60"
-            >
-              {loadingOlder && <Loader2 size={16} className="animate-spin" />}
-              {loadingOlder ? "Loading…" : "View Older Drops"}
-            </button>
+            {allEntries.length > 0 && (
+              <div className="mt-10 flex flex-col items-center gap-2">
+                {loadedAll ? (
+                  <p className="text-xs font-medium text-ink-3">
+                    that&apos;s every drop — nothing older.
+                  </p>
+                ) : (
+                  <button
+                    onClick={loadOlder}
+                    disabled={loadingOlder}
+                    className="flex items-center gap-2 rounded-full border border-line bg-white px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-paper disabled:opacity-60"
+                  >
+                    {loadingOlder && <Loader2 size={16} className="animate-spin" />}
+                    {loadingOlder ? "Loading…" : "View Older Drops"}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Desktop insights rail ── */}
+          {widgets && (
+            <aside className="sticky top-6 hidden min-w-0 xl:block">
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-ink-3">
+                At a glance
+              </p>
+              <HomeWidgets widgets={widgets} layout="rail" />
+            </aside>
           )}
         </div>
       )}
