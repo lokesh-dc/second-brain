@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { ENTRIES_PAGE_SIZE } from "@/constants/entries";
 import { Entry } from "@/types";
 
 const ENTRY_SELECT = `id, user_id, raw_text, summary, amount, currency, timestamp, tags,
@@ -41,6 +42,32 @@ export async function loadEntries(limit = 200): Promise<Entry[]> {
 
   if (error || !data) {
     console.error("Error fetching entries:", error);
+    return [];
+  }
+
+  return normalizeEntries(data as unknown as RawEntry[]);
+}
+
+export async function loadEntriesBefore(
+  before: string,
+  limit = ENTRIES_PAGE_SIZE,
+): Promise<Entry[]> {
+  const sb = await createClient();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await sb
+    .from("entries")
+    .select(ENTRY_SELECT)
+    .eq("user_id", user.id)
+    .lt("timestamp", before)
+    .order("timestamp", { ascending: false })
+    .limit(limit);
+
+  if (error || !data) {
+    console.error("Error fetching older entries:", error);
     return [];
   }
 

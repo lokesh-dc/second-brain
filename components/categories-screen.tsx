@@ -1,14 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
+import { toast } from "sonner";
 import EntryCard from "./entry-card";
 import EntrySheet from "./entry-sheet";
+import { deleteEntry, updateEntry } from "@/actions/entries";
 import { dayKey, dayLabel } from "./entries-feed";
-import { getCategoryConfig } from "@/constants/categories";
+import { getCategoryConfig, ALL_CATEGORY_NAMES } from "@/constants/categories";
 import { CategoryWithCount } from "@/lib/categories";
-import { Entry } from "@/types";
+import { Entry, EntryEditData } from "@/types";
 
 interface CategoriesScreenProps {
   categories: CategoryWithCount[];
@@ -35,6 +38,7 @@ export default function CategoriesScreen({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const router = useRouter();
   const reduceMotion = useReducedMotion();
 
   const uncategorizedCount = useMemo(
@@ -84,6 +88,65 @@ export default function CategoriesScreen({
   const openEntry = (entry: Entry) => {
     setSelectedEntry(entry);
     setSheetOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    const { ok, error } = await deleteEntry(id);
+
+    if (!ok) {
+      toast.error(error || "Failed to delete entry");
+      return;
+    }
+
+    setSheetOpen(false);
+    setSelectedEntry(null);
+    toast.success("Entry deleted");
+    router.refresh();
+  };
+
+  const handleEdit = async (id: string, data: EntryEditData) => {
+    const { ok, error } = await updateEntry(id, data);
+
+    if (!ok) {
+      toast.error(error || "Failed to edit entry");
+      return;
+    }
+
+    const nextCat =
+      categories.find(
+        (c) => c.name.toLowerCase() === data.category.toLowerCase(),
+      ) ??
+      (ALL_CATEGORY_NAMES.some(
+        (n) => n.toLowerCase() === data.category.toLowerCase(),
+      )
+        ? {
+            id: data.category.toLowerCase(),
+            user_id: "",
+            name: data.category,
+            is_default: true,
+          }
+        : undefined);
+    setSelectedEntry((prev) =>
+      prev
+        ? {
+            ...prev,
+            raw_text: data.raw_text,
+            summary: data.summary,
+            amount: data.amount ?? prev.amount,
+            currency: data.currency ?? prev.currency,
+            tags: data.tags,
+            category: nextCat ?? prev.category,
+            entities: data.entities.map((e, i) => ({
+              id: `${prev.id}-${i}`,
+              user_id: "",
+              name: e.name,
+              type: e.type,
+            })),
+          }
+        : prev,
+    );
+    toast.success("Entry updated");
+    router.refresh();
   };
 
   const tileMotionProps = (i: number) => ({
@@ -172,6 +235,9 @@ export default function CategoriesScreen({
           entry={selectedEntry}
           open={sheetOpen}
           onClose={() => setSheetOpen(false)}
+          onDelete={handleDelete}
+          onEdit={handleEdit}
+          categories={categories.map((c) => ({ id: c.id, name: c.name }))}
         />
       </main>
     );
@@ -264,6 +330,9 @@ export default function CategoriesScreen({
         entry={selectedEntry}
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
+        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
       />
     </main>
   );

@@ -1,6 +1,11 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ClassifierItem, ClassifierResult, EntityInput } from "@/types";
+import {
+  ClassifierItem,
+  ClassifierResult,
+  EntityInput,
+  EntryEditData,
+} from "@/types";
 import { chatJSON } from "./groq";
 import { generateEmbedding } from "./embeddings";
 
@@ -112,7 +117,6 @@ async function getCategoryId(
   name: string,
   userId: string,
 ): Promise<string | null> {
-  // 1. Exact (case-insensitive) match — seeded slug names like "expense".
   const { data: exact } = await sb
     .from("categories")
     .select("id")
@@ -139,7 +143,21 @@ async function getCategoryId(
     .limit(1)
     .maybeSingle();
 
-  return defaultCat?.id || null;
+  if (defaultCat) return defaultCat.id;
+
+  // None of the user's categories match (e.g. a standard option like "Media"
+  // the user hasn't hit yet) — create it so the entry keeps its category.
+  const { data: created, error } = await sb
+    .from("categories")
+    .insert({ user_id: userId, name, is_default: true })
+    .select("id")
+    .single();
+
+  if (error || !created) {
+    console.error("[classifier] category create failed:", error);
+    return null;
+  }
+  return created.id;
 }
 
 async function saveSingleItem(
@@ -200,11 +218,7 @@ async function saveSingleItem(
   }
 }
 
-export async function classifyAndSave(
-  sb: SupabaseClient,
-  rawText: string,
-  userId: string,
-): Promise<void> {
+export async function classifyItems(rawText: string): Promise<ClassifierItem[]> {
   let result: ClassifierResult;
 
   try {
@@ -218,12 +232,153 @@ export async function classifyAndSave(
     (item) => item && typeof item.category === "string",
   );
 
-  if (items.length === 0) {
-    await saveSingleItem(sb, fallbackItem(rawText), rawText, userId);
-    return;
+  return items.length === 0 ? [fallbackItem(rawText)] : items;
+}
+
+export async function classifyAndSave(
+  sb: SupabaseClient,
+  rawText: string,
+  userId: string,
+): Promise<void> {
+  const items = await classifyItems(rawText);
+  await Promise.all(items.map((item) => saveSingleItem(sb, item, rawText, userId)));
+}
+
+function buildEmbeddingDoc(data: EntryEditData): string {
+  const today = new Date().toISOString().split("T")[0];
+  const entityNames = data.entities.map((e) => e.name).join(", ") || "general";
+  return `[${data.category}] ${data.amount ?? ""} ${data.currency ?? ""} | ${entityNames} | ${today}\nSummary: ${data.summary || data.raw_text}\nTags: ${data.tags.join(", ")}`;
+}
+
+// Fast, synchronous part of an edit save — just the text and category the
+// user edited. Runs immediately so Save never blocks on the AI.
+export async function applyEntryEdit(
+  sb: SupabaseClient,
+  entryId: string,
+  userId: string,
+  data: EntryEditData,
+): Promise<void> {
+  const categoryId = await getCategoryId(sb, data.category.trim() || "Misc", userId);
+
+  const { error } = await sb
+    .from("entries")
+    .update({
+      raw_text: data.raw_text.trim(),
+      ...(categoryId ? { category_id: categoryId } : {}),
+    })
+    .eq("id", entryId)
+    .eq("user_id", userId);
+
+  if (error) {
+    console.error("[classifier] entry update (fast) failed:", error);
+    throw error;
+  }
+}
+
+// Background AI pass after the fast save: re-classifies the edited text,
+// keeps the user's chosen category, and fills in entities, tags, amount,
+// summary, currency and the embedding. Best-effort — never throws.
+export async function enrichEntryEdit(
+  sb: SupabaseClient,
+  entryId: string,
+  userId: string,
+  data: EntryEditData,
+): Promise<void> {
+  try {
+    const ai = (await classifyItems(data.raw_text))[0];
+
+    const merged: EntryEditData = {
+      raw_text: data.raw_text.trim(),
+      category: data.category.trim() || ai.category,
+      summary: data.summary.trim() || ai.summary,
+      amount: data.amount != null ? data.amount : ai.amount,
+      currency: data.currency || ai.currency || null,
+      tags: data.tags.length > 0 ? data.tags : ai.tags,
+      entities: mergeEntities(data.entities, ai.entities),
+    };
+
+    const categoryId = await getCategoryId(sb, merged.category, userId);
+
+    const embeddingDoc = buildEmbeddingDoc(merged);
+    let embedding: number[] | null = null;
+    try {
+      const result = await generateEmbedding(embeddingDoc);
+      if (result) embedding = result;
+    } catch (err) {
+      console.error("[classifier] embedding failed on edit:", err);
+    }
+
+    const { error: updateError } = await sb
+      .from("entries")
+      .update({
+        ...(categoryId ? { category_id: categoryId } : {}),
+        summary: merged.summary,
+        amount: merged.amount,
+        currency: merged.currency,
+        tags: merged.tags,
+        embedding_doc: embeddingDoc,
+        embedding,
+      })
+      .eq("id", entryId)
+      .eq("user_id", userId);
+
+    if (updateError) {
+      console.error("[classifier] entry enrichment failed:", updateError);
+      return;
+    }
+
+    const { error: unlinkError } = await sb
+      .from("entry_entities")
+      .delete()
+      .eq("entry_id", entryId);
+
+    if (unlinkError) {
+      console.error("[classifier] entry_entities unlink failed:", unlinkError);
+    }
+
+    if (merged.entities.length > 0) {
+      const entityIds = await Promise.all(
+        merged.entities.map((e) => upsertEntity(sb, e, userId)),
+      );
+
+      const links = entityIds
+        .filter((id): id is string => id !== null)
+        .map((entityId) => ({ entry_id: entryId, entity_id: entityId }));
+
+      if (links.length > 0) {
+        const { error: linkError } = await sb
+          .from("entry_entities")
+          .insert(links);
+
+        if (linkError) {
+          console.error("[classifier] entry_entities relink failed:", linkError);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[classifier] edit enrichment failed:", err);
+  }
+}
+
+function mergeEntities(
+  user: EntityInput[],
+  ai: EntityInput[],
+): EntityInput[] {
+  const seen = new Set<string>();
+  const merged: EntityInput[] = [];
+
+  for (const e of [...user, ...ai]) {
+    if (!e.name.trim()) continue;
+    const key = e.name.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push({
+      name: e.name.trim(),
+      type: e.type.trim().toLowerCase() || "misc",
+    });
   }
 
-  await Promise.all(items.map((item) => saveSingleItem(sb, item, rawText, userId)));
+  return merged;
 }
 
 function fallbackItem(rawText: string): ClassifierItem {
