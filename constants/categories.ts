@@ -68,3 +68,35 @@ export const ALL_CATEGORY_NAMES = [
   "Media",
   "Misc",
 ];
+
+const DISPLAY_NAMES: Record<string, string> = {
+  expense: "Expenses",
+  expenses: "Expenses",
+  reading: "Reading",
+  travel: "Travel",
+  idea: "Ideas",
+  ideas: "Ideas",
+  shopping: "Shopping",
+  health: "Health",
+  media: "Media",
+  misc: "Misc",
+};
+
+/**
+ * Single display rule for category names project-wide. The AI returns
+ * lowercase slugs ("expense") and old rows were stored verbatim — this maps
+ * every known slug to its capitalized display name and capitalizes anything
+ * unknown, so screens never render lowercase.
+ */
+export function formatCategoryName(name: string = ""): string {
+  const trimmed = name.trim();
+  const hit = DISPLAY_NAMES[trimmed.toLowerCase()];
+  if (hit) return hit;
+  if (!trimmed) return "Misc";
+  // Only touch all-lowercase names (e.g. legacy "expense" rows) — leave
+  // user-cased names like "eBooks" exactly as typed.
+  if (trimmed === trimmed.toLowerCase()) {
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  }
+  return trimmed;
+}

@@ -60,14 +60,14 @@ export async function parseQuery(input: string): Promise<ParsedQuery> {
 Return ONLY valid JSON. No explanation. No markdown.
 
 Schema:
-{"intent":"retrieve|log","rewritten_query":"string","category_filter":"expense|reading|idea|travel|shopping|health|misc|null","time_filter":{"type":"relative|absolute|null","range":"today|yesterday|this_week|last_week|this_month|last_month|null","from":null,"to":null},"entity_filter":"string or null","aggregation":"sum|count|list|null"}
+{"intent":"retrieve|log","rewritten_query":"string","category_filter":"expense|reading|idea|travel|shopping|health|media|misc|null","time_filter":{"type":"relative|absolute|null","range":"today|yesterday|this_week|last_week|this_month|last_month|null","from":null,"to":null},"entity_filter":"string or null","aggregation":"sum|count|list|null"}
 
 Rules:
 - intent is "retrieve" if asking a question (how, what, show, find).
 - intent is "log" if recording activity or stating a fact (read, bought, did, had).
 - If it's a statement of activity, it's ALWAYS a log.
-- category_filter: expense, reading, idea, travel, shopping, health, or misc.
-- entity_filter: book title, person, place name.
+- category_filter: expense, reading, idea, travel, shopping, health, media, or misc.
+- entity_filter: ONE short noun only — a place, person, or title ("jibhi", "kafka"). Never a phrase ("bus fare to jibhi").
 - aggregation: sum, count, or list.`;
 
   const userPrompt = `Input: "what did I spend this week"
@@ -78,6 +78,9 @@ Output: {"intent":"log","rewritten_query":"Read Kafka today","category_filter":"
 
 Input: "had coffee this morning"
 Output: {"intent":"log","rewritten_query":"had coffee this morning","category_filter":null,"time_filter":{"type":null,"range":null,"from":null,"to":null},"entity_filter":null,"aggregation":null}
+
+Input: "What was my bus fare to Jibhi"
+Output: {"intent":"retrieve","rewritten_query":"bus fare to Jibhi","category_filter":"expense","time_filter":{"type":null,"range":null,"from":null,"to":null},"entity_filter":"jibhi","aggregation":"list"}
 
 Input: "${input.replace(/"/g, "'")}"
 Output:`;

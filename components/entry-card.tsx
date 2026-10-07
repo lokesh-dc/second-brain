@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { Entry } from "@/types";
-import { getCategoryConfig } from "@/constants/categories";
+import { formatCategoryName, getCategoryConfig } from "@/constants/categories";
+import { formatEntityName } from "@/constants/entities";
 
 interface EntryCardProps {
   entry: Entry;
@@ -10,7 +12,8 @@ interface EntryCardProps {
 }
 
 export default function EntryCard({ entry, onPress }: EntryCardProps) {
-  const categoryName = entry.category?.name || "Misc";
+  const router = useRouter();
+  const categoryName = formatCategoryName(entry.category?.name);
   const config = getCategoryConfig(categoryName);
   const Icon = config.icon;
 
@@ -27,10 +30,19 @@ export default function EntryCard({ entry, onPress }: EntryCardProps) {
 
   const entities = entry.entities?.slice(0, 2) ?? [];
 
+  // Root is a div (not a button) so entity chips inside can be real buttons.
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onPress}
-      className="block w-full rounded-2xl border border-line bg-white p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-3/40 hover:shadow-[0_12px_28px_-16px_rgba(26,26,26,0.25)] active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onPress();
+        }
+      }}
+      className="block w-full cursor-pointer rounded-2xl border border-line bg-white p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-3/40 hover:shadow-[0_12px_28px_-16px_rgba(26,26,26,0.25)] active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
     >
       <div className="flex items-center gap-2">
         <span
@@ -59,15 +71,20 @@ export default function EntryCard({ entry, onPress }: EntryCardProps) {
             </span>
           )}
           {entities.map((e) => (
-            <span
+            <button
               key={e.id}
-              className="rounded-md border border-line bg-paper px-1.5 py-0.5 text-[11px] font-medium text-ink-2"
+              type="button"
+              onClick={(ev) => {
+                ev.stopPropagation();
+                router.push(`/entities/${e.id}`);
+              }}
+              className="rounded-md border border-line bg-paper px-1.5 py-0.5 text-[11px] font-medium text-ink-2 transition-colors hover:border-brand hover:text-ink"
             >
-              {e.name}
-            </span>
+              {formatEntityName(e.name)}
+            </button>
           ))}
         </div>
       )}
-    </button>
+    </div>
   );
 }

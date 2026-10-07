@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Hash, X } from "lucide-react";
 import { toast } from "sonner";
-import { DEFAULT_CATEGORIES } from "@/constants/categories";
+import { DEFAULT_CATEGORIES, formatCategoryName } from "@/constants/categories";
 import { completeSetup } from "@/actions/profile";
 
 const STAGGER = 0.15;
@@ -197,7 +197,7 @@ export default function SetupPage() {
                           isSelected ? "font-semibold text-[#0f172a]" : "text-[#64748b]"
                         }`}
                       >
-                        {category.name}
+                        {formatCategoryName(category.name)}
                       </span>
                     </button>
                   );

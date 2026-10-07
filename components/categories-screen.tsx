@@ -9,7 +9,7 @@ import EntryCard from "./entry-card";
 import EntrySheet from "./entry-sheet";
 import { deleteEntry, updateEntry } from "@/actions/entries";
 import { dayKey, dayLabel } from "./entries-feed";
-import { getCategoryConfig, ALL_CATEGORY_NAMES } from "@/constants/categories";
+import { getCategoryConfig, formatCategoryName, ALL_CATEGORY_NAMES } from "@/constants/categories";
 import { CategoryWithCount } from "@/lib/categories";
 import { Entry, EntryEditData } from "@/types";
 
@@ -163,6 +163,7 @@ export default function CategoriesScreen({
   if (selected) {
     const config = getCategoryConfig(selected.name);
     const Icon = config.icon;
+    const selectedDisplayName = formatCategoryName(selected.name);
     return (
       <main className="mx-auto max-w-lg px-5 pb-48 pt-8 md:max-w-4xl md:px-8 md:pb-16">
         <header>
@@ -183,7 +184,7 @@ export default function CategoriesScreen({
             </span>
             <div className="min-w-0">
               <h1 className="truncate font-display text-[28px] leading-none tracking-tight text-ink">
-                {selected.name}
+                {selectedDisplayName}
                 <span className="text-brand">.</span>
               </h1>
               <p className="mt-1 text-xs font-medium tabular-nums text-ink-3">
@@ -291,7 +292,7 @@ export default function CategoriesScreen({
                   <Icon size={20} color={config.accent} strokeWidth={2} />
                 </span>
                 <span className="mt-3 truncate text-[15px] font-semibold text-ink">
-                  {category.name}
+                  {formatCategoryName(category.name)}
                 </span>
                 <span className="mt-0.5 text-xs font-medium tabular-nums text-ink-3">
                   {dropLabel(category.entryCount)}

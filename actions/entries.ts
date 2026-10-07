@@ -32,6 +32,7 @@ export async function loadMoreEntries(
 
 export async function logEntry(
   text: string,
+  hintCategories?: string[],
 ): Promise<{ ok: boolean; error?: string }> {
   const trimmed = text.trim();
   if (!trimmed) return { ok: false, error: "Empty input" };
@@ -46,7 +47,11 @@ export async function logEntry(
   }
 
   try {
-    await classifyAndSave(sb, trimmed, user.id);
+    const hint = (hintCategories ?? [])
+      .map((c) => c.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+    await classifyAndSave(sb, trimmed, user.id, hint);
     revalidatePath("/home");
     return { ok: true };
   } catch (err) {

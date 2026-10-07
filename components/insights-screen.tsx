@@ -1,20 +1,64 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Banknote, Users } from "lucide-react";
+import { toast } from "sonner";
 import { Digest, DigestPeriod } from "@/types";
 import { fetchDigest } from "@/actions/digest";
+import { getEntityIdByName } from "@/actions/entities";
 import { DigestSegmentedControl } from "@/components/digest/segmented-control";
 import { DigestNarrativeCard } from "@/components/digest/narrative-card";
 import { DigestCategoryRow } from "@/components/digest/category-row";
 import { DigestCalloutCard } from "@/components/digest/callout-card";
 import { DigestEmptyState } from "@/components/digest/empty-state";
 import { DigestSkeleton } from "@/components/digest/digest-skeleton";
+import { formatEntityName } from "@/constants/entities";
 
 interface View {
   period: DigestPeriod;
   data: Digest | null;
   pending: boolean;
+}
+
+function TopEntityCallout({ name, count }: { name: string; count: number }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  const open = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await getEntityIdByName(name);
+      if (res.ok && res.id) {
+        router.push(`/entities/${res.id}`);
+      } else {
+        toast.error("No linked drops found");
+      }
+    } catch {
+      toast.error("Couldn't open entity");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => void open()}
+      disabled={busy}
+      className="w-full text-left transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70"
+      aria-label={`Open history for ${name}`}
+    >
+      <DigestCalloutCard
+        title="Most Logged"
+        value={formatEntityName(name)}
+        subtitle={`${count} entries · tap to explore`}
+        icon={Users}
+        color="#7F77DD"
+      />
+    </button>
+  );
 }
 
 export default function InsightsScreen() {
@@ -112,13 +156,7 @@ export default function InsightsScreen() {
                 />
               )}
               {raw.topEntity && (
-                <DigestCalloutCard
-                  title="Most Logged"
-                  value={raw.topEntity.name}
-                  subtitle={`${raw.topEntity.count} entries`}
-                  icon={Users}
-                  color="#7F77DD"
-                />
+                <TopEntityCallout name={raw.topEntity.name} count={raw.topEntity.count} />
               )}
             </div>
           </section>
