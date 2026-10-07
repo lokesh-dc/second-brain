@@ -8,16 +8,23 @@ import {
 } from "@/types";
 import { chatJSON } from "./groq";
 import { generateEmbedding } from "./embeddings";
+import { formatCategoryName } from "@/constants/categories";
 
-async function callClassifier(text: string): Promise<ClassifierResult> {
+async function callClassifier(text: string, hint?: string[]): Promise<ClassifierResult> {
   const today = new Date().toISOString().split("T")[0];
 
+  const hintLine =
+    hint && hint.length > 0
+      ? `\nUser hint: the user thinks this looks like ${hint.join(", ")}. Prefer these categories when the text is ambiguous, but still split distinct facts (an event vs its cost) into separate items.`
+      : "";
+
   const systemPrompt = `Classify this life log entry for a personal journal app.
-If the user mentions multiple distinct facts or a list of items, split them into logical groups.
+If the user mentions multiple distinct facts, split them into logical groups.
 
 Groups should be based on:
 1. Different Categories (e.g., one 'reading' item and one 'expense' item).
 2. Different expense types (e.g., group all groceries together, all electronics together).
+3. An event and its cost are ALWAYS two separate items. E.g. "trip to Jibhi, bus fare 2500" must become one 'travel' item (amount null) AND one 'expense' item — never a single merged item. Costs belong only in 'expense' (or 'shopping') items; every other category gets amount null.
 
 Return ONLY valid JSON. No explanation. No markdown.
 
@@ -38,7 +45,10 @@ Rules for items:
 - If user lists many groceries and a few electronics, create TWO 'expense' items.
 - Item 1 summary: "Bought groceries: milk (50), bread (40), eggs (60)." (Total amount: 150)
 - Item 2 summary: "Bought electronics: charger (500), cable (200)." (Total amount: 700)
-- Always include the specific item names and their individual costs (if provided) in the 'summary' and 'embedding_doc'.
+- Do the math: if the user gives a rate plus a quantity, record the COMPUTED TOTAL, not the rate. "2500 one way, return trip" means amount 5000. "800 per night, 3 nights" means 2400. Only multiply when the quantity is stated or clearly implied (return/round trip, nights, people); otherwise record the stated figure.
+- Show the working in the summary: "Paid 5000 for return bus fare (2500 one way)."
+- Places and people mentioned anywhere in the entry belong to EVERY item. If the trip is to Jibhi & Shoja, the travel item, the bus-fare item AND the hostel item must each list Jibhi and Shoja in their entities.
+- Keep stated dates in the summary and embedding_doc: "Trip to Jibhi & Shoja, 2-5 Oct." Dates are part of the memory.- Always include the specific item names and their individual costs (if provided) in the 'summary' and 'embedding_doc'.
 - embedding_doc format: "[category] amount currency | item names | ${today}\\nSummary: list items and costs\\nTags: tag1, tag2"`;
 
   const userPrompt = `Input: "Spent 50 on milk, 40 on bread, 1000 on a keyboard and 300 on a mouse"
@@ -65,8 +75,42 @@ Output: {
   ]
 }
 
-Input: "${text.replace(/"/g, "'")}"
-Output: Return a top-level object with an "items" key per the schema above.`;
+Input: "${text.replace(/"/g, "'")}"${hintLine}
+Output: Return a top-level object with an "items" key per the schema above.
+
+Example with an event, shared places, a computed total, and dates:
+Input: "Had a trip to Jibhi & Shoja, bus fare was 2500 one way for the return trip, spent 2 Oct - 5 Oct there and the hostel fare was 1500 for 3 days"
+Output: {
+  "items": [
+    {
+      "category": "travel",
+      "entities": [{"name": "Jibhi", "type": "place"}, {"name": "Shoja", "type": "place"}],
+      "amount": null,
+      "currency": null,
+      "summary": "Trip to Jibhi & Shoja, 2-5 Oct.",
+      "tags": ["travel", "mountains", "october"],
+      "embedding_doc": "[travel] | Jibhi, Shoja | ${today}\\nSummary: Trip to Jibhi & Shoja, 2-5 Oct\\nTags: travel, mountains"
+    },
+    {
+      "category": "expense",
+      "entities": [{"name": "Jibhi", "type": "place"}, {"name": "Shoja", "type": "place"}],
+      "amount": 5000,
+      "currency": "INR",
+      "summary": "Paid 5000 for return bus fare to Jibhi & Shoja (2500 one way).",
+      "tags": ["travel", "bus", "transport"],
+      "embedding_doc": "[expense] 5000 INR | bus fare, Jibhi, Shoja | ${today}\\nSummary: Paid 5000 for return bus fare (2500 one way)\\nTags: travel, bus"
+    },
+    {
+      "category": "expense",
+      "entities": [{"name": "Jibhi", "type": "place"}, {"name": "Shoja", "type": "place"}],
+      "amount": 1500,
+      "currency": "INR",
+      "summary": "Paid 1500 for the 3-day hostel stay in Jibhi.",
+      "tags": ["travel", "hostel", "stay"],
+      "embedding_doc": "[expense] 1500 INR | hostel, Jibhi, Shoja | ${today}\\nSummary: Paid 1500 for the 3-day hostel stay\\nTags: travel, hostel"
+    }
+  ]
+}`;
 
   return chatJSON<ClassifierResult>(
     [
@@ -117,11 +161,14 @@ async function getCategoryId(
   name: string,
   userId: string,
 ): Promise<string | null> {
+  // Normalize AI slugs ("expense") to display names ("Expenses") so newly
+  // created categories are stored capitalized from the start.
+  const display = formatCategoryName(name);
   const { data: exact } = await sb
     .from("categories")
     .select("id")
     .eq("user_id", userId)
-    .ilike("name", name)
+    .ilike("name", display)
     .maybeSingle();
   if (exact) return exact.id;
 
@@ -130,7 +177,7 @@ async function getCategoryId(
     .from("categories")
     .select("id")
     .eq("user_id", userId)
-    .ilike("name", `%${name}%`)
+    .ilike("name", `%${display}%`)
     .limit(1)
     .maybeSingle();
   if (fuzzy) return fuzzy.id;
@@ -138,7 +185,7 @@ async function getCategoryId(
   const { data: defaultCat } = await sb
     .from("categories")
     .select("id")
-    .ilike("name", `%${name}%`)
+    .ilike("name", `%${display}%`)
     .eq("is_default", true)
     .limit(1)
     .maybeSingle();
@@ -149,7 +196,7 @@ async function getCategoryId(
   // the user hasn't hit yet) — create it so the entry keeps its category.
   const { data: created, error } = await sb
     .from("categories")
-    .insert({ user_id: userId, name, is_default: true })
+    .insert({ user_id: userId, name: display, is_default: true })
     .select("id")
     .single();
 
@@ -218,11 +265,11 @@ async function saveSingleItem(
   }
 }
 
-export async function classifyItems(rawText: string): Promise<ClassifierItem[]> {
+export async function classifyItems(rawText: string, hint?: string[]): Promise<ClassifierItem[]> {
   let result: ClassifierResult;
 
   try {
-    result = await callClassifier(rawText);
+    result = await callClassifier(rawText, hint);
   } catch (err) {
     console.error("[classifier] classification failed, using fallback:", err);
     result = { items: [fallbackItem(rawText)] };
@@ -232,15 +279,48 @@ export async function classifyItems(rawText: string): Promise<ClassifierItem[]> 
     (item) => item && typeof item.category === "string",
   );
 
-  return items.length === 0 ? [fallbackItem(rawText)] : items;
+  const withShared = propagateSharedEntities(items);
+  return withShared.length === 0 ? [fallbackItem(rawText)] : withShared;
+}
+
+// Backstop for the "shared places" prompt rule: places, people and events
+// mentioned in ANY split item are attached to EVERY item, so "trip to Jibhi
+// + bus fare + hostel" keeps Jibhi on all three entries even if the model
+// only listed it on the first. Item-specific entities (milk, keyboard) are
+// never spread — only place/person/event types propagate.
+const SHARED_ENTITY_TYPES = new Set(["place", "person", "event"]);
+
+function propagateSharedEntities(items: ClassifierItem[]): ClassifierItem[] {
+  const shared = new Map<string, EntityInput>();
+  for (const item of items) {
+    for (const e of item.entities ?? []) {
+      const key = e.name.trim().toLowerCase();
+      if (!key || shared.has(key)) continue;
+      if (!SHARED_ENTITY_TYPES.has((e.type || "").toLowerCase())) continue;
+      shared.set(key, { name: e.name.trim(), type: e.type.trim().toLowerCase() });
+    }
+  }
+  if (shared.size === 0) return items;
+
+  return items.map((item) => {
+    const seen = new Set(
+      (item.entities ?? []).map((e) => e.name.trim().toLowerCase()),
+    );
+    const missing = [...shared.values()].filter(
+      (e) => !seen.has(e.name.toLowerCase()),
+    );
+    if (missing.length === 0) return item;
+    return { ...item, entities: [...(item.entities ?? []), ...missing] };
+  });
 }
 
 export async function classifyAndSave(
   sb: SupabaseClient,
   rawText: string,
   userId: string,
+  hint?: string[],
 ): Promise<void> {
-  const items = await classifyItems(rawText);
+  const items = await classifyItems(rawText, hint);
   await Promise.all(items.map((item) => saveSingleItem(sb, item, rawText, userId)));
 }
 
@@ -258,7 +338,7 @@ export async function applyEntryEdit(
   userId: string,
   data: EntryEditData,
 ): Promise<void> {
-  const categoryId = await getCategoryId(sb, data.category.trim() || "Misc", userId);
+  const categoryId = await getCategoryId(sb, formatCategoryName(data.category) || "Misc", userId);
 
   const { error } = await sb
     .from("entries")

@@ -6,6 +6,29 @@ import { Category, Entity, Entry, MatchDocumentsRow, ParsedQuery } from "@/types
 
 const RRF_K = 60;
 
+// Words that carry no entity meaning — dropped when reducing a filter
+// phrase ("bus fare to jibhi") to its significant token ("jibhi").
+const ENTITY_STOPWORDS = new Set([
+  "what", "was", "were", "is", "are", "my", "the", "a", "an", "to",
+  "for", "in", "on", "of", "how", "much", "many", "did", "do", "it",
+  "me", "about", "any", "had", "has", "have", "with",
+]);
+
+/**
+ * Reduce a possibly-phrasy entity filter to one significant token.
+ * The query parser is instructed to emit a single noun, but older
+ * responses (and edge cases) can still be phrases — matching those
+ * verbatim against entity names guarantees zero hits.
+ */
+function entityToken(filter: string): string {
+  const tokens = filter
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 2 && !ENTITY_STOPWORDS.has(t));
+  if (tokens.length === 0) return filter.trim().toLowerCase();
+  return tokens.sort((a, b) => b.length - a.length)[0];
+}
+
 /**
  * PostgREST can return the categories(id, ...) join as an object, an array
  * (relationship resolved as many), or null depending on the row and hinting.
@@ -206,7 +229,10 @@ export async function hybridSearch(
   if (parsed.category_filter) filters.p_category = parsed.category_filter;
   if (parsed.time_filter.from) filters.p_from = parsed.time_filter.from;
   if (parsed.time_filter.to) filters.p_to = parsed.time_filter.to;
-  if (parsed.entity_filter) filters.p_entity_name = parsed.entity_filter;
+  const entityTok = parsed.entity_filter
+    ? entityToken(parsed.entity_filter)
+    : null;
+  if (entityTok) filters.p_entity_name = entityTok;
 
   const [vectorRes, structuredRes] = await Promise.all([
     sb.rpc("match_documents_filtered", {
@@ -264,10 +290,10 @@ export async function hybridSearch(
     (structuredRes.data ?? []) as unknown as StructuredRow[]
   ).map(normalizeStructuredRow);
 
-  const filteredStructured = parsed.entity_filter
+  const filteredStructured = entityTok
     ? structuredEntries.filter((e) =>
         e.entities?.some((ee) =>
-          ee.name?.toLowerCase().includes(parsed.entity_filter!.toLowerCase()),
+          ee.name?.toLowerCase().includes(entityTok),
         ),
       )
     : structuredEntries;
