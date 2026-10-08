@@ -309,7 +309,7 @@ export default function EntriesFeed({
 
           {/* ── Desktop insights rail ── */}
           {widgets && (
-            <aside className="sticky top-6 hidden min-w-0 xl:block">
+            <aside className="mt-6 sticky top-6 hidden min-w-0 xl:block">
               <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-ink-3">
                 At a glance
               </p>

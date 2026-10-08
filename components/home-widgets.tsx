@@ -6,12 +6,10 @@ import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowUpRight,
   Banknote,
-  Flame,
   LayoutGrid,
   Search,
   Sparkles,
 } from "lucide-react";
-import { getCategoryConfig, formatCategoryName } from "@/constants/categories";
 import { EntityNameButton } from "./entity-link";
 import type { HomeWidgets } from "@/actions/home";
 
@@ -37,21 +35,6 @@ export default function HomeWidgets({
     animate: { opacity: 1, y: 0 },
     transition: { duration: 0.45, delay: Math.min(i * 0.06, 0.3), ease: EASE },
   });
-
-  const topConfig = widgets.topCategory
-    ? getCategoryConfig(widgets.topCategory.name)
-    : null;
-  const TopIcon = topConfig?.icon;
-
-  const stats = [
-    { label: "Today", value: String(widgets.todayCount) },
-    { label: "This week", value: String(widgets.weekCount) },
-    {
-      label: "Day streak",
-      value: String(widgets.streakDays),
-      flame: widgets.streakDays >= 2,
-    },
-  ];
 
   const isRail = layout === "rail";
   const router = useRouter();
@@ -154,80 +137,43 @@ export default function HomeWidgets({
         </motion.div>
       </div>
 
-      {/* ── Stat tiles ── */}
-      <div className={isRail ? "grid grid-cols-2 gap-3" : "grid grid-cols-3 gap-3 md:grid-cols-4"}>
-        {stats.map((s, i) => (
-          <motion.div
-            key={s.label}
-            {...anim(2 + i)}
-            className="rounded-2xl border border-line bg-white px-4 py-3.5"
-          >
-            <p className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.12em] text-ink-3">
-              {s.flame && <Flame size={12} className="text-caramel" />}
-              {s.label}
-            </p>
-            <p className="mt-1 font-display text-2xl leading-none tabular-nums">
-              {s.value}
-            </p>
-          </motion.div>
-        ))}
-        <motion.div
-          {...anim(5)}
-          className={
-            isRail
-              ? "col-span-2 rounded-2xl border border-line bg-white px-4 py-3.5"
-              : "col-span-3 rounded-2xl border border-line bg-white px-4 py-3.5 md:col-span-1"
-          }
-        >
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-3">
-            Top category · 30d
-          </p>
-          {widgets.topCategory && TopIcon ? (
-            <p className="mt-1.5 flex items-center gap-2 font-display text-[19px] leading-none">
-              <span
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-lg"
-                style={{ backgroundColor: `${topConfig!.accent}1A` }}
-              >
-                <TopIcon size={15} color={topConfig!.accent} />
-              </span>
-              <span className="truncate">
-                {formatCategoryName(widgets.topCategory.name)}
-                <span className="ml-1.5 align-middle font-sans text-xs font-semibold tabular-nums text-ink-3">
-                  ×{widgets.topCategory.count}
-                </span>
-              </span>
-            </p>
-          ) : (
-            <p className="mt-1.5 font-display text-[19px] leading-none text-ink-3">
-              —
-            </p>
-          )}
-        </motion.div>
-      </div>
-
-      {/* ── Quick actions ── */}
+      {/* ── Quick actions: 3-column grid that fits small phones ── */}
       <motion.nav
-        {...anim(6)}
+        {...anim(2)}
         aria-label="Quick actions"
-        className={isRail ? "flex flex-col gap-2" : "flex flex-wrap gap-2"}
+        className={isRail ? "flex flex-col gap-2" : "grid grid-cols-3 gap-2"}
       >
         <Link
           href="/search"
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-ink px-4 py-2.5 text-[13px] font-semibold text-white transition-transform hover:scale-[1.01] active:scale-[0.99]"
+          className={
+            isRail
+              ? "flex items-center justify-center gap-1.5 rounded-full bg-ink px-4 py-2.5 text-[13px] font-semibold text-white transition-transform hover:scale-[1.01] active:scale-[0.99]"
+              : "flex flex-col items-center justify-center gap-1 rounded-2xl bg-ink px-1 py-3 text-[11px] font-semibold text-white transition-transform hover:scale-[1.01] active:scale-[0.99] sm:flex-row sm:gap-1.5 sm:rounded-full sm:px-4 sm:py-2.5 sm:text-[13px]"
+          }
         >
-          <Search size={14} /> Ask your mind
+          <Search size={15} className="shrink-0" />
+          <span className="sm:hidden">Ask</span>
+          <span className="hidden sm:inline">Ask your mind</span>
         </Link>
         <Link
           href="/insights"
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-line bg-white px-4 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-ink-3"
+          className={
+            isRail
+              ? "flex items-center justify-center gap-1.5 rounded-full border border-line bg-white px-4 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-ink-3"
+              : "flex flex-col items-center justify-center gap-1 rounded-2xl border border-line bg-white px-1 py-3 text-[11px] font-semibold text-ink transition-colors hover:border-ink-3 sm:flex-row sm:gap-1.5 sm:rounded-full sm:px-4 sm:py-2.5 sm:text-[13px]"
+          }
         >
-          <Sparkles size={14} className="text-brand" /> Insights
+          <Sparkles size={15} className="shrink-0 text-brand" /> Insights
         </Link>
         <Link
           href="/categories"
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-line bg-white px-4 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-ink-3"
+          className={
+            isRail
+              ? "flex items-center justify-center gap-1.5 rounded-full border border-line bg-white px-4 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-ink-3"
+              : "flex flex-col items-center justify-center gap-1 rounded-2xl border border-line bg-white px-1 py-3 text-[11px] font-semibold text-ink transition-colors hover:border-ink-3 sm:flex-row sm:gap-1.5 sm:rounded-full sm:px-4 sm:py-2.5 sm:text-[13px]"
+          }
         >
-          <LayoutGrid size={14} className="text-ink-3" /> Categories
+          <LayoutGrid size={15} className="shrink-0 text-ink-3" /> Categories
         </Link>
       </motion.nav>
     </section>

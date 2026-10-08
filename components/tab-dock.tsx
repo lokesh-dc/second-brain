@@ -9,6 +9,7 @@ import {
   Plus,
   Search,
   Sparkles,
+  Tags,
 } from "lucide-react";
 import { useCapture } from "./capture";
 
@@ -17,6 +18,7 @@ const tabs = [
   { href: "/search", icon: Search },
   { href: "/insights", icon: Sparkles },
   { href: "/categories", icon: LayoutGrid },
+  { href: "/entities", icon: Tags },
 ];
 
 export default function TabDock() {
@@ -33,9 +35,10 @@ export default function TabDock() {
       style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
     >
       <div className="flex items-center">
-        <nav className="relative flex h-[52px] min-w-0 flex-1 items-center rounded-full border border-black/20 border-b-black/5 bg-white px-1.5">
+        <nav className="relative flex h-[52px] min-w-0 flex-1 items-center rounded-full border border-black/20 bg-white px-1.5">
           {tabs.map((tab) => {
-            const active = pathname === tab.href;
+            const active =
+              pathname === tab.href || pathname.startsWith(`${tab.href}/`);
             return (
               <button
                 key={tab.href}
@@ -57,9 +60,8 @@ export default function TabDock() {
                 <tab.icon
                   size={20}
                   strokeWidth={active ? 2.5 : 2}
-                  className={`relative z-10 ${
-                    active ? "text-white" : "text-black"
-                  }`}
+                  className={`relative z-10 ${active ? "text-white" : "text-black"
+                    }`}
                 />
               </button>
             );

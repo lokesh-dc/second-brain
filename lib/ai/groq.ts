@@ -3,7 +3,7 @@ import "server-only";
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1/chat/completions";
 export const GROQ_MODEL = "openai/gpt-oss-20b";
 
-type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 interface ChatOptions {
   temperature?: number;

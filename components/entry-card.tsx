@@ -42,7 +42,7 @@ export default function EntryCard({ entry, onPress }: EntryCardProps) {
           onPress();
         }
       }}
-      className="block w-full cursor-pointer rounded-2xl border border-line bg-white p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-3/40 hover:shadow-[0_12px_28px_-16px_rgba(26,26,26,0.25)] active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      className="flex h-full w-full cursor-pointer flex-col rounded-2xl border border-line bg-white p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-3/40 hover:shadow-[0_12px_28px_-16px_rgba(26,26,26,0.25)] active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
     >
       <div className="flex items-center gap-2">
         <span
@@ -64,7 +64,7 @@ export default function EntryCard({ entry, onPress }: EntryCardProps) {
       </p>
 
       {(amount || entities.length > 0) && (
-        <div className="mt-2.5 flex items-center gap-2">
+        <div className="mt-auto flex items-center gap-2 pt-3">
           {amount && (
             <span className="text-[13px] font-bold tabular-nums text-success">
               {amount}

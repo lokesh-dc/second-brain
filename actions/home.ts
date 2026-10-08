@@ -9,7 +9,6 @@ export type HomeWidgets = {
   monthSpend: number;
   monthSpendCurrency: string;
   monthLabel: string;
-  streakDays: number;
   topCategory: { name: string; count: number } | null;
   totalDrops: number;
   briefing: {
@@ -19,24 +18,6 @@ export type HomeWidgets = {
     topEntity?: Digest["raw_data"]["topEntity"];
   } | null;
 };
-
-function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate(),
-  ).padStart(2, "0")}`;
-}
-
-function computeStreak(days: Set<string>): number {
-  const cursor = new Date();
-  // Allow the streak to stay alive if today has no drops yet.
-  if (!days.has(dayKey(cursor))) cursor.setDate(cursor.getDate() - 1);
-  let streak = 0;
-  while (days.has(dayKey(cursor))) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
-}
 
 /**
  * Lightweight dashboard data for /home. One bounded entries query
@@ -50,7 +31,6 @@ export async function getHomeWidgets(): Promise<HomeWidgets> {
     monthSpend: 0,
     monthSpendCurrency: "INR",
     monthLabel: new Date().toLocaleString("en-US", { month: "long" }),
-    streakDays: 0,
     topCategory: null,
     totalDrops: 0,
     briefing: null,
@@ -97,7 +77,6 @@ export async function getHomeWidgets(): Promise<HomeWidgets> {
   };
 
   const list = (rows ?? []) as unknown as Row[];
-  const days = new Set<string>();
   const catCounts = new Map<string, number>();
   let todayCount = 0;
   let weekCount = 0;
@@ -110,7 +89,6 @@ export async function getHomeWidgets(): Promise<HomeWidgets> {
     const raw = Array.isArray(r.category) ? r.category[0] : r.category;
     const catName = raw?.name ?? "misc";
 
-    days.add(dayKey(ts));
     catCounts.set(catName, (catCounts.get(catName) ?? 0) + 1);
 
     if (ts >= startOfToday) todayCount += 1;
@@ -141,8 +119,16 @@ export async function getHomeWidgets(): Promise<HomeWidgets> {
 
   let briefing: HomeWidgets["briefing"] = null;
   if (cachedDigest) {
-    const ageH = (Date.now() - new Date(cachedDigest.generated_at).getTime()) / 3_600_000;
-    if (ageH < 24 && typeof cachedDigest.narrative === "string") {
+    const generatedAt = new Date(cachedDigest.generated_at).getTime();
+    const ageH = (Date.now() - generatedAt) / 3_600_000;
+    // Same staleness rules as getDigest, evaluated against the entries
+    // already fetched above: yesterday's digest or one predating new drops
+    // shows the "generate" CTA instead of stale text.
+    const predatesToday = generatedAt < startOfToday.getTime();
+    const hasNewer = list.some(
+      (r) => new Date(r.timestamp).getTime() > generatedAt,
+    );
+    if (ageH < 24 && !predatesToday && !hasNewer && typeof cachedDigest.narrative === "string") {
       const raw = cachedDigest.raw_data as Digest["raw_data"] | null;
       briefing = {
         narrative: cachedDigest.narrative,
@@ -159,7 +145,6 @@ export async function getHomeWidgets(): Promise<HomeWidgets> {
     monthSpend,
     monthSpendCurrency,
     monthLabel: now.toLocaleString("en-US", { month: "long" }),
-    streakDays: computeStreak(days),
     topCategory,
     totalDrops: totalDrops ?? list.length,
     briefing,

@@ -8,6 +8,7 @@ import {
   Plus,
   Search,
   Sparkles,
+  Tags,
 } from "lucide-react";
 import { useCapture } from "./capture";
 
@@ -16,6 +17,7 @@ const tabs = [
   { href: "/search", icon: Search, label: "Search" },
   { href: "/insights", icon: Sparkles, label: "Insights" },
   { href: "/categories", icon: LayoutGrid, label: "Categories" },
+  { href: "/entities", icon: Tags, label: "Entities" },
 ];
 
 export default function DesktopSidebar() {
@@ -33,7 +35,8 @@ export default function DesktopSidebar() {
       {/* Nav links */}
       <nav className="flex flex-1 flex-col gap-1 px-3">
         {tabs.map((tab) => {
-          const active = pathname === tab.href;
+          const active =
+            pathname === tab.href || pathname.startsWith(`${tab.href}/`);
           return (
             <button
               key={tab.href}

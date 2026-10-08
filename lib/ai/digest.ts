@@ -57,7 +57,7 @@ async function aggregateData(
         : "") || "misc";
     entryCountByCategory[catName] = (entryCountByCategory[catName] || 0) + 1;
 
-    if (catName.toLowerCase() === "expense" && entry.amount) {
+    if (catName.toLowerCase().includes("expense") && entry.amount) {
       totalAmountByCategory[catName] =
         (totalAmountByCategory[catName] || 0) + entry.amount;
       if (!biggestExpense || entry.amount > biggestExpense.amount) {
@@ -127,7 +127,10 @@ Rules:
       },
       { role: "user", content: prompt },
     ],
-    { temperature: 0.7, maxTokens: 200 },
+    // Reasoning models (gpt-oss) spend completion tokens thinking — a 200
+    // budget 400s with "max completion tokens reached", which surfaced as
+    // an eternally empty briefing. Headroom for thinking + 2-3 sentences.
+    { temperature: 0.7, maxTokens: 1000 },
   );
 }
 
@@ -141,7 +144,12 @@ export async function getDigest(
   } = await sb.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  // 1. Check Supabase cache (<24h old is fresh)
+  // 1. Check Supabase cache. A cached digest is fresh only if ALL hold:
+  //   - generated <24h ago (backstop),
+  //   - generated inside the current period window (a "today" digest from
+  //     yesterday evening must not serve as today's briefing),
+  //   - no entries logged since generation (new drops invalidate it).
+  const range = getRange(period);
   if (!forceRegenerate) {
     const { data: dbDigest } = await sb
       .from("digests")
@@ -151,15 +159,21 @@ export async function getDigest(
       .maybeSingle();
 
     if (dbDigest) {
-      const ageInHours =
-        (Date.now() - new Date(dbDigest.generated_at).getTime()) /
-        (1000 * 60 * 60);
-      if (ageInHours < 24) return dbDigest as Digest;
+      const generatedAt = new Date(dbDigest.generated_at).getTime();
+      const ageInHours = (Date.now() - generatedAt) / (1000 * 60 * 60);
+      const predatesWindow = generatedAt < new Date(range.start).getTime();
+      if (ageInHours < 24 && !predatesWindow) {
+        const { count: newerCount } = await sb
+          .from("entries")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .gt("timestamp", dbDigest.generated_at);
+        if (!newerCount) return dbDigest as Digest;
+      }
     }
   }
 
   // 2. Regenerate
-  const range = getRange(period);
   const rawData = await aggregateData(sb, user.id, range.start, range.end);
 
   const hasEntries = Object.keys(rawData.entryCountByCategory).length > 0;

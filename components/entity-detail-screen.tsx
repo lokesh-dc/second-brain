@@ -7,22 +7,13 @@ import { motion, useReducedMotion } from "framer-motion";
 import { format } from "date-fns";
 import {
   ArrowLeft,
-  BookOpen,
-  Clapperboard,
-  Hash,
-  MapPin,
-  Music,
-  ShoppingBag,
-  Tag,
-  User,
   Wallet,
-  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import EntryCard from "./entry-card";
 import EntrySheet from "./entry-sheet";
 import { dayKey, dayLabel } from "./entries-feed";
-import { formatEntityName } from "@/constants/entities";
+import { entityIconFor, formatEntityName } from "@/constants/entities";
 import { formatCategoryName } from "@/constants/categories";
 import { deleteEntry, updateEntry } from "@/actions/entries";
 import type { EntityStats } from "@/actions/entities";
@@ -30,17 +21,7 @@ import type { Entity, Entry, EntryEditData } from "@/types";
 
 const EASE = [0.215, 0.61, 0.355, 1] as const;
 
-function iconFor(type: string): LucideIcon {
-  const t = (type || "").toLowerCase();
-  if (t.includes("place")) return MapPin;
-  if (t.includes("person")) return User;
-  if (t.includes("book") || t.includes("course")) return BookOpen;
-  if (t.includes("movie") || t.includes("tv") || t.includes("show")) return Clapperboard;
-  if (t.includes("song") || t.includes("music") || t.includes("game")) return Music;
-  if (t.includes("brand") || t.includes("product") || t.includes("app")) return ShoppingBag;
-  if (t.includes("project")) return Hash;
-  return Tag;
-}
+const iconFor = entityIconFor;
 
 function formatSpend(amount: number, currency: string | null): string {
   const symbol = currency === "INR" ? "₹" : currency ? `${currency} ` : "";

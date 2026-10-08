@@ -13,6 +13,78 @@ export type EntityStats = {
   categories: { name: string; count: number }[];
 };
 
+export type EntityWithMeta = Entity & {
+  dropCount: number;
+  spendTotal: number;
+  spendCurrency: string | null;
+  lastSeen: string | null;
+};
+
+/**
+ * Every entity of the user with its usage stats — powers the /entities
+ * index. One nested query, aggregation in JS.
+ */
+export async function getEntities(): Promise<EntityWithMeta[]> {
+  const sb = await createClient();
+  const {
+    data: { user },
+  } = await sb.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await sb
+    .from("entities")
+    .select(
+      `id, user_id, name, type,
+       entry_entities(entry:entries(id, user_id, timestamp, amount, currency))`,
+    )
+    .eq("user_id", user.id)
+    .order("name", { ascending: true });
+
+  if (error || !data) {
+    console.error("[entities] index query failed:", error);
+    return [];
+  }
+
+  type Row = Entity & {
+    entry_entities?: { entry: { id: string; user_id: string; timestamp: string; amount: number | null; currency: string | null } | null }[];
+  };
+
+  return (data as unknown as Row[]).map((row) => {
+    const links = (row.entry_entities ?? [])
+      .map((l) => l.entry)
+      .filter(
+        (e): e is NonNullable<typeof e> =>
+          !!e && (e as { user_id: string }).user_id === user.id,
+      );
+
+    let spendTotal = 0;
+    const currencyCounts = new Map<string, number>();
+    let lastSeen: string | null = null;
+    for (const e of links) {
+      if (e.amount != null) {
+        spendTotal += e.amount;
+        if (e.currency) {
+          currencyCounts.set(e.currency, (currencyCounts.get(e.currency) ?? 0) + 1);
+        }
+      }
+      if (!lastSeen || e.timestamp > lastSeen) lastSeen = e.timestamp;
+    }
+
+    const { entry_entities: _links, ...entity } = row;
+    void _links;
+    return {
+      ...entity,
+      dropCount: links.length,
+      spendTotal,
+      spendCurrency:
+        currencyCounts.size > 0
+          ? [...currencyCounts.entries()].sort((a, b) => b[1] - a[1])[0][0]
+          : null,
+      lastSeen,
+    };
+  }).sort((a, b) => b.dropCount - a.dropCount || a.name.localeCompare(b.name));
+}
+
 export async function getEntityDetails(
   id: string,
 ): Promise<

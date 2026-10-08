@@ -362,10 +362,22 @@ function EntryContent({
         </div>
       ) : (
         <>
-          {/* Raw text */}
+          {/* Summary (same as the entry card) */}
           <p className="mb-6 text-xl font-medium leading-relaxed text-pretty text-ink">
-            {entry.raw_text}
+            {entry.summary || entry.raw_text}
           </p>
+
+          {/* Your words — only when they differ from the summary */}
+          {entry.raw_text && entry.raw_text !== entry.summary && (
+            <section className="mb-6">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-3">
+                Your words
+              </h3>
+              <p className="rounded-xl bg-paper p-3 text-[15px] leading-relaxed text-ink-2">
+                {entry.raw_text}
+              </p>
+            </section>
+          )}
 
           {/* Entities */}
           {entry.entities && entry.entities.length > 0 && (

@@ -6,11 +6,15 @@ import {
   EntityInput,
   EntryEditData,
 } from "@/types";
-import { chatJSON } from "./groq";
+import { chatJSON, type ChatMessage } from "./groq";
 import { generateEmbedding } from "./embeddings";
 import { formatCategoryName } from "@/constants/categories";
 
-async function callClassifier(text: string, hint?: string[]): Promise<ClassifierResult> {
+async function callClassifier(
+  text: string,
+  hint?: string[],
+  noExamples = false,
+): Promise<ClassifierResult> {
   const today = new Date().toISOString().split("T")[0];
 
   const hintLine =
@@ -48,11 +52,15 @@ Rules for items:
 - Do the math: if the user gives a rate plus a quantity, record the COMPUTED TOTAL, not the rate. "2500 one way, return trip" means amount 5000. "800 per night, 3 nights" means 2400. Only multiply when the quantity is stated or clearly implied (return/round trip, nights, people); otherwise record the stated figure.
 - Show the working in the summary: "Paid 5000 for return bus fare (2500 one way)."
 - Places and people mentioned anywhere in the entry belong to EVERY item. If the trip is to Jibhi & Shoja, the travel item, the bus-fare item AND the hostel item must each list Jibhi and Shoja in their entities.
-- Keep stated dates in the summary and embedding_doc: "Trip to Jibhi & Shoja, 2-5 Oct." Dates are part of the memory.- Always include the specific item names and their individual costs (if provided) in the 'summary' and 'embedding_doc'.
+- Keep stated dates in the summary and embedding_doc: "Trip to Jibhi & Shoja, 2-5 Oct." Dates are part of the memory.
+- Always include the specific item names and their individual costs (if provided) in the 'summary' and 'embedding_doc'.
 - embedding_doc format: "[category] amount currency | item names | ${today}\\nSummary: list items and costs\\nTags: tag1, tag2"`;
 
-  const userPrompt = `Input: "Spent 50 on milk, 40 on bread, 1000 on a keyboard and 300 on a mouse"
-Output: {
+  // Few-shot examples travel as real user/assistant turns (not one giant
+  // user message) so the model learns the FORMAT without echoing the
+  // example content as the answer.
+  const groceryInput = `Input: "Spent 50 on milk, 40 on bread, 1000 on a keyboard and 300 on a mouse"`;
+  const groceryOutput = `{
   "items": [
     {
       "category": "expense",
@@ -73,14 +81,10 @@ Output: {
       "embedding_doc": "[expense] 1300 INR | keyboard, mouse | ${today}\\nSummary: Bought keyboard (1000) and mouse (300)\\nTags: electronics, tech"
     }
   ]
-}
+}`;
 
-Input: "${text.replace(/"/g, "'")}"${hintLine}
-Output: Return a top-level object with an "items" key per the schema above.
-
-Example with an event, shared places, a computed total, and dates:
-Input: "Had a trip to Jibhi & Shoja, bus fare was 2500 one way for the return trip, spent 2 Oct - 5 Oct there and the hostel fare was 1500 for 3 days"
-Output: {
+  const jibhiInput = `Input: "Had a trip to Jibhi & Shoja, bus fare was 2500 one way for the return trip, spent 2 Oct - 5 Oct there and the hostel fare was 1500 for 3 days". This is ONLY an example — never copy its places, amounts, or summaries into your answer.`;
+  const jibhiOutput = `{
   "items": [
     {
       "category": "travel",
@@ -112,13 +116,28 @@ Output: {
   ]
 }`;
 
-  return chatJSON<ClassifierResult>(
-    [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    { temperature: 0.5, maxTokens: 2000 },
-  );
+  const realInput =
+    `Now classify this NEW input (it is NOT one of the examples above — never reuse example names, amounts, or summaries): "${text.replace(/"/g, "'")}"${hintLine}\n` +
+    `Return ONLY the JSON object with an "items" key for the input above.`;
+
+  const messages: ChatMessage[] = noExamples
+    ? [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: realInput },
+      ]
+    : [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: groceryInput },
+        { role: "assistant", content: groceryOutput },
+        { role: "user", content: jibhiInput },
+        { role: "assistant", content: jibhiOutput },
+        { role: "user", content: realInput },
+      ];
+
+  return chatJSON<ClassifierResult>(messages, {
+    temperature: 0.5,
+    maxTokens: 2000,
+  });
 }
 
 async function upsertEntity(
@@ -164,33 +183,24 @@ async function getCategoryId(
   // Normalize AI slugs ("expense") to display names ("Expenses") so newly
   // created categories are stored capitalized from the start.
   const display = formatCategoryName(name);
-  const { data: exact } = await sb
-    .from("categories")
-    .select("id")
-    .eq("user_id", userId)
-    .ilike("name", display)
-    .maybeSingle();
-  if (exact) return exact.id;
+  const key = display.toLowerCase();
 
-  // 2. Substring match — display names like "Expenses"/"Ideas" vs slugs.
-  const { data: fuzzy } = await sb
+  // Compare normalized on both sides in JS: "expense" and "Expenses" (and
+  // "idea"/"Ideas") resolve to the same row instead of creating duplicates.
+  // One query replaces the old exact/fuzzy/default triple.
+  const { data: cats, error: listError } = await sb
     .from("categories")
-    .select("id")
-    .eq("user_id", userId)
-    .ilike("name", `%${display}%`)
-    .limit(1)
-    .maybeSingle();
-  if (fuzzy) return fuzzy.id;
+    .select("id, name")
+    .eq("user_id", userId);
 
-  const { data: defaultCat } = await sb
-    .from("categories")
-    .select("id")
-    .ilike("name", `%${display}%`)
-    .eq("is_default", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (defaultCat) return defaultCat.id;
+  if (listError) {
+    console.error("[classifier] category list failed:", listError);
+  } else {
+    const hit = (cats ?? []).find(
+      (c) => formatCategoryName(c.name).toLowerCase() === key,
+    );
+    if (hit) return hit.id;
+  }
 
   // None of the user's categories match (e.g. a standard option like "Media"
   // the user hasn't hit yet) — create it so the entry keeps its category.
@@ -275,12 +285,55 @@ export async function classifyItems(rawText: string, hint?: string[]): Promise<C
     result = { items: [fallbackItem(rawText)] };
   }
 
-  const items = (result.items ?? []).filter(
-    (item) => item && typeof item.category === "string",
-  );
+  const valid = (r: ClassifierResult): ClassifierItem[] =>
+    (r.items ?? []).filter(
+      (item) => item && typeof item.category === "string",
+    );
+
+  let items = valid(result);
+
+  // The model sometimes echoes a few-shot example (milk/keyboard) instead
+  // of classifying. Retry once with the examples stripped; if it still
+  // echoes, fall back to misc — honest raw text beats fake groceries.
+  if (items.length > 0 && looksEchoed(rawText, items)) {
+    console.error("[classifier] output echoes the examples, retrying bare");
+    try {
+      const retry = await callClassifier(rawText, hint, true);
+      const retryItems = valid(retry);
+      if (retryItems.length > 0 && !looksEchoed(rawText, retryItems)) {
+        items = retryItems;
+      }
+    } catch (err) {
+      console.error("[classifier] bare retry failed:", err);
+    }
+    if (looksEchoed(rawText, items)) return [fallbackItem(rawText)];
+  }
 
   const withShared = propagateSharedEntities(items);
   return withShared.length === 0 ? [fallbackItem(rawText)] : withShared;
+}
+
+/**
+ * True when NONE of the result's entities or amounts appear anywhere in
+ * the input — i.e. the model regurgitated example content (groceries,
+ * electronics) instead of classifying the user's text.
+ */
+function looksEchoed(input: string, items: ClassifierItem[]): boolean {
+  const t = input.toLowerCase();
+  let hasContent = false;
+  for (const item of items) {
+    for (const e of item.entities ?? []) {
+      const name = e.name.trim().toLowerCase();
+      if (!name) continue;
+      hasContent = true;
+      if (t.includes(name)) return false;
+    }
+    if (item.amount != null) {
+      hasContent = true;
+      if (t.includes(String(item.amount))) return false;
+    }
+  }
+  return hasContent;
 }
 
 // Backstop for the "shared places" prompt rule: places, people and events
