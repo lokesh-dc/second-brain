@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -12,7 +13,8 @@ import {
 import { toast } from "sonner";
 import { Drawer } from "vaul";
 import { Entry, EntryEditData } from "@/types";
-import { getCategoryConfig, ALL_CATEGORY_NAMES } from "@/constants/categories";
+import { getCategoryConfig, formatCategoryName, ALL_CATEGORY_NAMES } from "@/constants/categories";
+import { formatEntityName } from "@/constants/entities";
 import { useIsDesktop } from "@/hooks/use-media-query";
 
 interface EntrySheetProps {
@@ -235,9 +237,10 @@ function EntryContent({
   onEdit: (id: string, data: EntryEditData) => void | Promise<void>;
   categories: { id: string; name: string }[];
 }) {
-  const categoryName = entry.category?.name || "Misc";
+  const categoryName = formatCategoryName(entry.category?.name);
   const config = getCategoryConfig(categoryName);
   const Icon = config.icon;
+  const router = useRouter();
 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -359,10 +362,22 @@ function EntryContent({
         </div>
       ) : (
         <>
-          {/* Raw text */}
+          {/* Summary (same as the entry card) */}
           <p className="mb-6 text-xl font-medium leading-relaxed text-pretty text-ink">
-            {entry.raw_text}
+            {entry.summary || entry.raw_text}
           </p>
+
+          {/* Your words — only when they differ from the summary */}
+          {entry.raw_text && entry.raw_text !== entry.summary && (
+            <section className="mb-6">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-3">
+                Your words
+              </h3>
+              <p className="rounded-xl bg-paper p-3 text-[15px] leading-relaxed text-ink-2">
+                {entry.raw_text}
+              </p>
+            </section>
+          )}
 
           {/* Entities */}
           {entry.entities && entry.entities.length > 0 && (
@@ -372,12 +387,14 @@ function EntryContent({
               </h3>
               <div className="flex flex-wrap gap-2">
                 {entry.entities.map((e) => (
-                  <span
+                  <button
                     key={e.id}
-                    className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-semibold text-ink-2"
+                    type="button"
+                    onClick={() => router.push(`/entities/${e.id}`)}
+                    className="rounded-lg border border-line bg-paper px-3 py-1.5 text-sm font-semibold text-ink-2 transition-colors hover:border-brand hover:text-ink"
                   >
-                    {e.name}
-                  </span>
+                    {formatEntityName(e.name)}
+                  </button>
                 ))}
               </div>
             </section>
@@ -432,7 +449,7 @@ function DesktopSlideOver({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-ink/30"
+            className="fixed inset-0 z-[70] bg-ink/30"
           />
           <motion.aside
             role="dialog"
@@ -441,7 +458,7 @@ function DesktopSlideOver({
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 260 }}
-            className="fixed inset-y-0 right-0 z-50 w-full max-w-[420px] overflow-y-auto bg-white p-6 shadow-2xl"
+            className="fixed inset-y-0 right-0 z-[80] w-full max-w-[420px] overflow-y-auto bg-white p-6 shadow-2xl"
           >
             <EntryContent
               entry={entry}
@@ -500,8 +517,8 @@ export default function EntrySheet({
       }}
     >
       <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-40 bg-ink/30" />
-        <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white px-6 pb-6 pt-1 outline-none">
+        <Drawer.Overlay className="fixed inset-0 z-[70] bg-ink/30" />
+        <Drawer.Content className="fixed inset-x-0 bottom-0 z-[80] mx-auto max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white px-6 pb-6 pt-1 outline-none">
           <Drawer.Title className="sr-only">Entry details</Drawer.Title>
 
           {/* Handle bar */}
