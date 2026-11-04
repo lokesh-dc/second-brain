@@ -38,11 +38,12 @@ export default function SetupPage() {
         (c) => c.name.toLowerCase() === trimmed.toLowerCase(),
       )
     ) {
+      const id = `custom-${Date.now()}`;
       setCustomCategories((prev) => [
         ...prev,
-        { id: `custom-${Date.now()}`, name: trimmed },
+        { id, name: trimmed },
       ]);
-      setSelectedCategories((prev) => [...prev, `custom-${Date.now()}`]);
+      setSelectedCategories((prev) => [...prev, id]);
       setNewCategoryName("");
     }
   };
