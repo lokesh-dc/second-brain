@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { format, isToday, isYesterday } from "date-fns";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Loader2, LogOut, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import EntryCard from "./entry-card";
 import EntrySheet from "./entry-sheet";
@@ -13,6 +13,7 @@ import HomeWidgets from "./home-widgets";
 import { useCapture } from "./capture";
 import type { HomeWidgets as HomeWidgetsData } from "@/actions/home";
 import { updateEntry, deleteEntry, loadMoreEntries } from "@/actions/entries";
+import { signOut } from "@/actions/profile";
 import { ENTRIES_PAGE_SIZE } from "@/constants/entries";
 import { Entry, EntryEditData } from "@/types";
 
@@ -208,6 +209,19 @@ export default function EntriesFeed({
             >
               <Search size={14} /> Ask your mind
             </Link>
+            <button
+              type="button"
+              onClick={async () => {
+                await signOut();
+                router.push("/login");
+                router.refresh();
+              }}
+              aria-label="Sign out"
+              title="Sign out"
+              className="grid h-8 w-8 place-items-center rounded-full border border-line bg-white text-ink-3 transition-colors hover:text-ink md:hidden"
+            >
+              <LogOut size={14} />
+            </button>
           </div>
         </div>
         <div className="mt-6 h-px bg-line" />
