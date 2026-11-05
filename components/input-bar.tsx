@@ -6,7 +6,7 @@ import CategoryPicker from "./category-picker";
 import EntityChip from "./entity-chip";
 
 interface InputBarProps {
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string, category?: string) => void;
   isLoading?: boolean;
   forceSearchMode?: boolean;
   placeholder?: string;
@@ -20,24 +20,28 @@ export default function InputBar({
 }: InputBarProps) {
   const [text, setText] = useState("");
   const [isPickerVisible, setIsPickerVisible] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isSearchMode, setIsSearchMode] = useState(forceSearchMode);
 
-  const showEntityChip =
-    !isSearchMode && text.toLowerCase().includes("spent");
+  const chipLabel =
+    !isSearchMode
+      ? (selectedCategory ?? (text.toLowerCase().includes("spent") ? "Food" : null))
+      : null;
 
   const handleSubmit = () => {
     if (text.trim()) {
-      onSubmit(text);
+      onSubmit(text, selectedCategory ?? undefined);
       setText("");
+      setSelectedCategory(null);
       setIsSearchMode(forceSearchMode);
     }
   };
 
   return (
     <div className="relative">
-      {showEntityChip && (
+      {chipLabel && (
         <div className="absolute -top-11 left-0">
-          <EntityChip label="Food" />
+          <EntityChip label={chipLabel} />
         </div>
       )}
 
@@ -119,6 +123,10 @@ export default function InputBar({
       <CategoryPicker
         visible={isPickerVisible}
         onClose={() => setIsPickerVisible(false)}
+        selected={selectedCategory}
+        onSelect={(cat) =>
+          setSelectedCategory((prev) => (prev === cat ? null : cat))
+        }
       />
     </div>
   );

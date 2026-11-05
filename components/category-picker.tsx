@@ -9,18 +9,38 @@ import { useIsDesktop } from "@/hooks/use-media-query";
 interface CategoryPickerProps {
   visible: boolean;
   onClose: () => void;
+  selected?: string | null;
+  onSelect?: (categoryName: string) => void;
 }
 
-function CategoryGrid({ onClose }: { onClose: () => void }) {
+function CategoryGrid({
+  onClose,
+  selected,
+  onSelect,
+}: {
+  onClose: () => void;
+  selected?: string | null;
+  onSelect?: (categoryName: string) => void;
+}) {
   return (
     <div className="grid grid-cols-3 gap-x-3 gap-y-4">
       {DEFAULT_CATEGORIES.map((category) => {
         const Icon = category.icon;
+        const isSelected =
+          selected?.toLowerCase() === category.name.toLowerCase();
         return (
           <button
             key={category.id}
-            onClick={onClose}
-            className="flex aspect-[0.9] flex-col items-center justify-center rounded-2xl border border-[#f1f5f9]"
+            onClick={() => {
+              onSelect?.(category.name);
+              onClose();
+            }}
+            aria-pressed={isSelected}
+            className={`flex aspect-[0.9] flex-col items-center justify-center rounded-2xl border transition-colors ${
+              isSelected
+                ? "border-[#0f172a] bg-[#f8fafc]"
+                : "border-[#f1f5f9]"
+            }`}
           >
             <span className="mb-2 grid h-12 w-12 place-items-center rounded-xl bg-[#f1f5f9]">
               <Icon size={24} color={category.color} />
@@ -35,7 +55,12 @@ function CategoryGrid({ onClose }: { onClose: () => void }) {
   );
 }
 
-function DesktopModal({ visible, onClose }: CategoryPickerProps) {
+function DesktopModal({
+  visible,
+  onClose,
+  selected,
+  onSelect,
+}: CategoryPickerProps) {
   return (
     <AnimatePresence>
       {visible && (
@@ -65,7 +90,11 @@ function DesktopModal({ visible, onClose }: CategoryPickerProps) {
                   <X size={20} className="text-[#64748b]" />
                 </button>
               </div>
-              <CategoryGrid onClose={onClose} />
+              <CategoryGrid
+                onClose={onClose}
+                selected={selected}
+                onSelect={onSelect}
+              />
             </motion.div>
           </div>
         </>
@@ -77,11 +106,20 @@ function DesktopModal({ visible, onClose }: CategoryPickerProps) {
 export default function CategoryPicker({
   visible,
   onClose,
+  selected,
+  onSelect,
 }: CategoryPickerProps) {
   const isDesktop = useIsDesktop();
 
   if (isDesktop) {
-    return <DesktopModal visible={visible} onClose={onClose} />;
+    return (
+      <DesktopModal
+        visible={visible}
+        onClose={onClose}
+        selected={selected}
+        onSelect={onSelect}
+      />
+    );
   }
 
   return (
@@ -102,7 +140,11 @@ export default function CategoryPicker({
             </button>
           </div>
 
-          <CategoryGrid onClose={onClose} />
+          <CategoryGrid
+            onClose={onClose}
+            selected={selected}
+            onSelect={onSelect}
+          />
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

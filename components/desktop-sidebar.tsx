@@ -5,11 +5,13 @@ import { motion } from "framer-motion";
 import {
   House,
   LayoutGrid,
+  LogOut,
   Plus,
   Search,
   Sparkles,
   Tags,
 } from "lucide-react";
+import { signOut } from "@/actions/profile";
 import { useCapture } from "./capture";
 
 const tabs = [
@@ -73,8 +75,8 @@ export default function DesktopSidebar() {
         })}
       </nav>
 
-      {/* New drop */}
-      <div className="px-3 pb-5">
+      {/* New drop + Sign out */}
+      <div className="space-y-2 px-3 pb-5">
         <button
           onClick={openCapture}
           className="group flex h-11 w-full items-center gap-2.5 rounded-xl bg-ink px-3 text-white transition-transform hover:scale-[1.01] active:scale-[0.99]"
@@ -86,6 +88,17 @@ export default function DesktopSidebar() {
           <kbd className="ml-auto rounded-md bg-white/15 px-1.5 py-0.5 text-[11px] font-bold text-white/80">
             N
           </kbd>
+        </button>
+        <button
+          onClick={async () => {
+            await signOut();
+            router.push("/login");
+            router.refresh();
+          }}
+          className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium text-ink-3 transition-colors hover:bg-paper hover:text-ink"
+        >
+          <LogOut size={18} />
+          <span>Sign out</span>
         </button>
       </div>
     </aside>

@@ -51,16 +51,20 @@ export async function proxy(request: NextRequest) {
   }
 
   // ---- Signed in: check setup completion ----
-  let setupComplete = false;
+  let setupComplete = true;
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("user_profiles")
       .select("setup_complete")
       .eq("id", user.id)
       .single();
-    setupComplete = data?.setup_complete ?? false;
-  } catch {
-    setupComplete = false;
+    if (error) {
+      console.error("[proxy] user_profiles read failed:", error);
+    } else {
+      setupComplete = data?.setup_complete ?? false;
+    }
+  } catch (err) {
+    console.error("[proxy] unexpected user_profiles error:", err);
   }
 
   if (!setupComplete) {
